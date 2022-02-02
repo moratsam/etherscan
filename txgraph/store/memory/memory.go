@@ -72,7 +72,7 @@ func (g *InMemoryGraph) UpsertWallet(wallet *graph.Wallet) error {
 	// Check if a wallet with the same address already exists. 
 	// If so, potentially update it's Crawled field.
 	if existing := g.wallets[wallet.Address]; existing != nil {
-		if ! existing.Crawled && wallet.Crawled {
+		if !existing.Crawled && wallet.Crawled {
 			existing.Crawled = wallet.Crawled
 		}
 		return nil

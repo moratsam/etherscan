@@ -10,7 +10,7 @@ type txIterator struct {
 	curIndex int
 }
 
-type (i *txIterator) Next() bool {
+func (i *txIterator) Next() bool {
 	if i.curIndex >= len(i.txs) {
 		return false
 	}
@@ -18,15 +18,15 @@ type (i *txIterator) Next() bool {
 	return true
 }
 
-type (i *txIterator) Error() error {
+func (i *txIterator) Error() error {
 	return nil
 }
 
-type (i *txIterator) Close() error {
+func (i *txIterator) Close() error {
 	return nil
 }
 
-type (i *txIterator) Tx() *graph.Tx {
+func (i *txIterator) Tx() *graph.Tx {
 	// The transactions are insert-only, so a read lock is not necessary.
 	tx := new(graph.Tx)
 	*tx = *i.txs[i.curIndex-1]
@@ -42,7 +42,7 @@ type walletIterator struct {
 	curIndex int
 }
 
-type (i *walletIterator) Next() bool {
+func (i *walletIterator) Next() bool {
 	if i.curIndex >= len(i.wallets) {
 		return false
 	}
@@ -50,15 +50,15 @@ type (i *walletIterator) Next() bool {
 	return true
 }
 
-type (i *walletIterator) Error() error {
+func (i *walletIterator) Error() error {
 	return nil
 }
 
-type (i *walletIterator) Close() error {
+func (i *walletIterator) Close() error {
 	return nil
 }
 
-type (i *walletIterator) Wallet() *graph.Wallet {
+func (i *walletIterator) Wallet() *graph.Wallet {
 	// The transactions are insert-only, so a read lock is necessary.
 	i.g.mu.RLock()
 	defer i.g.mu.RUnlock()

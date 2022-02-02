@@ -9,3 +9,4 @@ var (
 	// ErrUnknownTxWallets is returned when attempting to create a transactions,
 	// with an invalid to or from wallet address.
 	ErrUnknownTxWallets = xerrors.New("unknown to or from wallet address for transaction.")
+)

@@ -90,7 +90,7 @@ type Graph interface {
 	UpsertWallet(wallet *Wallet) error
 
 	// Looks up a wallet by its address.
-	FindWallet(address string) (*Tx, error)
+	FindWallet(address string) (*Wallet, error)
 
 	// Returns an iterator for the set of transactions connected to a wallet.
 	// This means the wallet is either the sender or the receiver of the transaction.

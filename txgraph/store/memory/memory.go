@@ -31,13 +31,13 @@ type InMemoryGraph struct {
 func NewInMemoryGraph() *InMemoryGraph {
 	return &InMemoryGraph{
 		txs:				make(map[string]*graph.Tx),
-		wallets			make(map[string]*graph.Wallet),
+		wallets:			make(map[string]*graph.Wallet),
 		walletTxsMap:	make(map[string]txList),
 	}
 }
 
 // Inserts a transaction.
-func (g *InMemoryGraph) InsertTx(tx *Tx) error {
+func (g *InMemoryGraph) InsertTx(tx *graph.Tx) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -65,7 +65,7 @@ func (g *InMemoryGraph) InsertTx(tx *Tx) error {
 }
 
 // Upserts a Wallet.
-func (g *InMemoryGraph) UpsertWallet(wallet *Wallet) error {
+func (g *InMemoryGraph) UpsertWallet(wallet *graph.Wallet) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -79,42 +79,42 @@ func (g *InMemoryGraph) UpsertWallet(wallet *Wallet) error {
 	}
 
 	//Add a copy of the wallet to the graph.
-	wCopy = new(graph.Wallet)
+	wCopy := new(graph.Wallet)
 	*wCopy = *wallet
 	g.wallets[wCopy.Address] = wCopy
 	return nil
 }
 
 // Looks up a wallet by its address.
-func (g *InMemoryGraph) FindWallet(address string) (*Tx, error) {
+func (g *InMemoryGraph) FindWallet(address string) (*graph.Wallet, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
 	wallet := g.wallets[address]
 	if wallet == nil {
-		return nil, xerror.Errorf("find wallet: %w", graph.ErrNotFound)
+		return nil, xerrors.Errorf("find wallet: %w", graph.ErrNotFound)
 	}
 
-	wCopy = new(graph.Wallet)
+	wCopy := new(graph.Wallet)
 	*wCopy = *wallet
 	return wCopy, nil
 }
 
 // Returns an iterator for the set of transactions connected to a wallet.
-func (g *InMemoryGraph) WalletTxs(address string) (TxIterator, error) {
+func (g *InMemoryGraph) WalletTxs(address string) (graph.TxIterator, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
 	var list []*graph.Tx
 	for _, tx := range g.walletTxsMap[address] {
-		list = append(list, tx)
+		list = append(list, g.txs[tx])
 	}
 	return &txIterator{g: g, txs: list}, nil
 }
 
 // Returns an iterator for the set of wallets that belong in the
 // [fromAddress, toAddress) range.
-func (g *InMemoryGraph) Wallets(fromAddress, toAddress string) (WalletIterator, error) {
+func (g *InMemoryGraph) Wallets(fromAddress, toAddress string) (graph.WalletIterator, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 

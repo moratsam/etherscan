@@ -3,6 +3,7 @@ package graphtest
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 	tx.Value = initValue
 
-	// Retrieve it from WalletTxs iterator
+	// Retrieve it from WalletTxs iterators of both wallets
 	itFrom, err := s.g.WalletTxs(fromAddr)
 	c.Assert(err, gc.IsNil)
 	itTo, err := s.g.WalletTxs(toAddr)
@@ -89,6 +90,7 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 	c.Assert(itTo.Error(), gc.IsNil)
 	c.Assert(itTo.Close(), gc.IsNil)
 
+	// Assert their equivalence
 	c.Assert(txFrom, gc.DeepEquals, tx)
 	c.Assert(txTo, gc.DeepEquals, tx)
 }
@@ -156,14 +158,88 @@ func (s *SuiteBase) TestFindWallet(c *gc.C) {
 }
 
 // Verifies that multiple clients can concurrently access the store.
+func (s *SuiteBase) TestConcurrenttxIterators(c *gc.C) {
+	var (
+		wg				 sync.WaitGroup
+		numIterators = 10
+		numTxs       = 100
+		fromAddr 	 = s.createAddressFromInt(c, 1);
+		toAddr 		 = s.createAddressFromInt(c, 2);
+	)
+
+	// Insert two wallets
+	err := s.g.UpsertWallet(&graph.Wallet{Address: fromAddr, Crawled: false})
+	c.Assert(err, gc.IsNil)
+	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr, Crawled: false})
+	c.Assert(err, gc.IsNil)
+
+	// Insert transactions
+	for i:=0; i<numTxs; i++ {
+		tx := &graph.Tx{
+			Hash:					strconv.Itoa(i),
+			Status: 				graph.Success,
+			Block: 				big.NewInt(111),
+			Timestamp:			time.Now(),
+			From: 				fromAddr,
+			To: 					toAddr,
+			Value: 				big.NewInt(1),
+			TransactionFee:	big.NewInt(323),
+			Data: 				make([]byte, 10),
+		}
+		err := s.g.InsertTx(tx)
+		c.Assert(err, gc.IsNil)
+	}
+
+	wg.Add(numIterators)
+	for i:=0; i<numIterators; i++ {
+		go func(id int) {
+			defer wg.Done()
+
+			itTagComment := gc.Commentf("iterator %d", id)
+			seen := make(map[string]bool)
+			it, err := s.g.WalletTxs(fromAddr)
+			c.Assert(err, gc.IsNil, itTagComment)
+			defer func() {
+				c.Assert(it.Close(), gc.IsNil, itTagComment)
+			}()
+
+			for i:=0; it.Next(); i++ {
+				tx := it.Tx()
+				txHash := tx.Hash
+				c.Assert(seen[txHash], gc.Equals, false, gc.Commentf("iterator %d saw same tx twice", id))
+				seen[txHash] = true
+			}
+
+			c.Assert(seen, gc.HasLen, numTxs, itTagComment)
+			c.Assert(it.Error(), gc.IsNil, itTagComment)
+			c.Assert(it.Close(), gc.IsNil, itTagComment)
+		}(i)
+	}
+
+	// Wait for the routines to finish
+	doneCh := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(doneCh)
+	}()
+
+	select {
+		case <-doneCh:
+		// test completed successfully
+		case <- time.After(10 * time.Second):
+			c.Fatal("timed out waiting for test to complete")
+	}
+}
+
+// Verifies that multiple clients can concurrently access the store.
 func (s *SuiteBase) TestConcurrentWalletIterators(c *gc.C) {
 	var (
 		wg				 sync.WaitGroup
 		numIterators = 10
-		numWallets	 = 100
+		numTxs		 = 100
 	)
 
-	for i:=0; i<numWallets; i++ {
+	for i:=0; i<numTxs; i++ {
 		wallet := &graph.Wallet{Address: s.createAddressFromInt(c, i)}
 		c.Assert(s.g.UpsertWallet(wallet), gc.IsNil)
 	}
@@ -188,7 +264,7 @@ func (s *SuiteBase) TestConcurrentWalletIterators(c *gc.C) {
 				seen[walletAddr] = true
 			}
 
-			c.Assert(seen, gc.HasLen, numWallets, itTagComment)
+			c.Assert(seen, gc.HasLen, numTxs, itTagComment)
 			c.Assert(it.Error(), gc.IsNil, itTagComment)
 			c.Assert(it.Close(), gc.IsNil, itTagComment)
 		}(i)
@@ -248,9 +324,6 @@ func (s *SuiteBase) TestPartitionedWalletIterators(c *gc.C) {
 }
 
 /*
-func (s *SuiteBase) (c *gc.C) {
-	
-}
 func (s *SuiteBase) (c *gc.C) {
 	
 }

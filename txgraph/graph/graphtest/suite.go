@@ -52,6 +52,15 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr, Crawled: false})
 	c.Assert(err, gc.IsNil)
 
+	//find the inserted wallets
+	wallet, err := s.g.FindWallet(fromAddr)
+	c.Assert(err, gc.IsNil)
+	c.Assert(wallet.Address, gc.Equals, fromAddr, gc.Commentf("find wallet returned wrong address"))
+	wallet, err = s.g.FindWallet(toAddr)
+	c.Assert(err, gc.IsNil)
+	c.Assert(wallet.Address, gc.Equals, toAddr, gc.Commentf("find wallet returned wrong address"))
+
+
 	// Insert transaction
 	err = s.g.InsertTx(tx)
 	c.Assert(err, gc.IsNil)
@@ -76,9 +85,9 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 		c.Assert(txHash, gc.Equals, testHash, gc.Commentf("iterator returned wrong tx"))
 		c.Assert(tx.Value, gc.Equals, initValue, gc.Commentf("tx Value got overwritten"))
 	}
-	c.Assert(i, gc.Equals, 1, gc.Commentf("wrong number of txs for a wallet"))
 	c.Assert(itFrom.Error(), gc.IsNil)
 	c.Assert(itFrom.Close(), gc.IsNil)
+	c.Assert(i, gc.Equals, 1, gc.Commentf("wrong number of txs for a wallet"))
 
 	for i=0; itTo.Next(); i++ {
 		txTo = itTo.Tx()
@@ -158,7 +167,7 @@ func (s *SuiteBase) TestFindWallet(c *gc.C) {
 }
 
 // Verifies that multiple clients can concurrently access the store.
-func (s *SuiteBase) TestConcurrenttxIterators(c *gc.C) {
+func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 	var (
 		wg				 sync.WaitGroup
 		numIterators = 10

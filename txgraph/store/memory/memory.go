@@ -45,7 +45,7 @@ func (g *InMemoryGraph) InsertTx(tx *graph.Tx) error {
 	_, fromExists := g.wallets[tx.From]
 	_, toExists := g.wallets[tx.To]
 	if !fromExists || !toExists {
-		return xerrors.Errorf("insert tx: %w", graph.ErrUnknownTxWallets)
+		return xerrors.Errorf("insert tx: %w", graph.ErrUnknownAddress)
 	}
 
 	// If a tx with the given hash already exists, do nothing.
@@ -68,6 +68,10 @@ func (g *InMemoryGraph) InsertTx(tx *graph.Tx) error {
 func (g *InMemoryGraph) UpsertWallet(wallet *graph.Wallet) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	if len(wallet.Address) != 40 {
+		return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
+	}
 
 	// Check if a wallet with the same address already exists. 
 	// If so, potentially update it's Crawled field.

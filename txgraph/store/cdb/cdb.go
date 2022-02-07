@@ -60,7 +60,7 @@ func (c *CockroachDbGraph) InsertTx(tx *graph.Tx) error {
 		tx.Hash,
 		tx.Status,
 		tx.Block.String(),
-		tx.Timestamp,
+		tx.Timestamp.UTC(),
 		tx.From,
 		tx.To,
 		tx.Value.String(),

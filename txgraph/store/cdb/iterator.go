@@ -18,97 +18,43 @@ type txIterator struct {
 	latchedTx	*graph.Tx
 }
 
-type BigInt big.Int
-
-type xx struct {
-	// Unique hash.
-	Hash string
-
-	Status graph.TxStatus
-
-	// Number of block when this transaction was mined
-	Block *BigInt
-
-	// Time when transaction got finished (either by a failure or success)
-	Timestamp time.Time
-
-	// Sender of transaction
-	From string
-
-	// Receiver of transaction
-	To string
-
-	// Amount eth sent in transaction, given in gwei
-	Value *BigInt
-
-	// Given in gwei
-	TransactionFee *BigInt
-
-	// Transaction data
-	Data string
-}
-
-
-	// Value implements the Valuer interface for BigInt
-func (b *BigInt) Value() (driver.Value, error) {
-   if b != nil {
-      return (*big.Int)(b).String(), nil
-   }
-   return nil, nil
-}
-
-// Scan implements the Scanner interface for BigInt
-func (b *BigInt) Scan(value interface{}) error {
-	if value == nil {
-		b = nil
-	}
-	switch t := value.(type) {
-	case int64:
-	 	(*big.Int)(b).SetInt64(value.(int64))
-	case []uint8:
-		_, ok := (*big.Int)(b).SetString(string(value.([]uint8)), 10)
-		if !ok {
-			return xerrors.Errorf("failed to load value to []uint8: %v", value)
-		}
-	default:
-		return xerrors.Errorf("could not scan type %T into BigInt", t)
-	 }
-	return nil
-}
-
 func (i *txIterator) Next() bool {
 	if i.lastErr != nil || !i.rows.Next() {
 		return false
 	}
 
-	t := new(xx)
+	// Scan data into a helper Transaction with custom BigInt handling.
+	helper := new(helperTx)
 	i.lastErr = i.rows.Scan(
-		&t.Hash,
-		&t.Status,
-		&t.Block,
-		&t.Timestamp,
-		&t.From,
-		&t.To,
-		&t.Value,
-		&t.TransactionFee,
-		&t.Data,
+		&helper.Hash,
+		&helper.Status,
+		&helper.Block,
+		&helper.Timestamp,
+		&helper.From,
+		&helper.To,
+		&helper.Value,
+		&helper.TransactionFee,
+		&helper.Data,
 	)
 
 	if i.lastErr != nil {
 		return false
 	}
 
-	x := new(graph.Tx)
-	x.Hash = t.Hash
-	x.Status = t.Status
-	x.Block = (*big.Int)(t.Block)
-	x.Timestamp = t.Timestamp
-	x.From = t.From
-	x.To = t.To
-	x.Value = (*big.Int)(t.Value)
-	x.TransactionFee = (*big.Int)(t.TransactionFee)
-	x.Data = ([]byte)(t.Data)
-	i.latchedTx = x
+	// Move data from the helper tx into the graph.Tx and return that.
+	// TODO figure out if there's a better way of doing this.
+	t := new(graph.Tx)
+	t.Hash = helper.Hash
+	t.Status = helper.Status
+	t.Block = (*big.Int)(helper.Block)
+	t.Timestamp = helper.Timestamp.UTC()
+	t.From = helper.From
+	t.To = helper.To
+	t.Value = (*big.Int)(helper.Value)
+	t.TransactionFee = (*big.Int)(helper.TransactionFee)
+	t.Data = helper.Data
+
+	i.latchedTx = t
 	return true
 }
 
@@ -166,3 +112,49 @@ func (i *walletIterator) Close() error {
 func (i *walletIterator) Wallet() *graph.Wallet {
 	return i.latchedWallet
 }
+
+// This is a helper type used to define the custom Scan method required to retrieve
+// Big.Int data from the database.
+type BigInt big.Int
+
+// Value implements the Valuer interface for BigInt
+func (b *BigInt) Value() (driver.Value, error) {
+   if b != nil {
+      return (*big.Int)(b).String(), nil
+   }
+   return nil, nil
+}
+
+// Scan implements the Scanner interface for BigInt
+func (b *BigInt) Scan(value interface{}) error {
+	if value == nil {
+		b = nil
+	}
+	switch t := value.(type) {
+	case int64:
+	 	(*big.Int)(b).SetInt64(value.(int64))
+	case []uint8:
+		_, ok := (*big.Int)(b).SetString(string(value.([]uint8)), 10)
+		if !ok {
+			return xerrors.Errorf("failed to load value to []uint8: %v", value)
+		}
+	default:
+		return xerrors.Errorf("could not scan type %T into BigInt", t)
+	 }
+	return nil
+}
+
+// This is equivalent to the graph.Tx, except it contains BigInt instead of big.Int
+// Data from the database is scanned into this before being moved into an actual graph.Tx.
+type helperTx struct {
+	Hash string
+	Status graph.TxStatus
+	Block *BigInt
+	Timestamp time.Time
+	From string
+	To string
+	Value *BigInt
+	TransactionFee *BigInt
+	Data []byte
+}
+

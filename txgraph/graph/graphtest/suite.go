@@ -34,7 +34,7 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 		Hash:					testHash,
 		Status: 				graph.Success,
 		Block: 				big.NewInt(111),
-		Timestamp:			time.Now(),
+		Timestamp:			time.Now().UTC(),
 		From: 				fromAddr,
 		To: 					toAddr,
 		Value: 				initValue,
@@ -100,6 +100,9 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 	c.Assert(itTo.Close(), gc.IsNil)
 
 	// Assert their equivalence
+	tx.Timestamp = tx.Timestamp.Truncate(time.Millisecond)
+	txFrom.Timestamp = txFrom.Timestamp.Truncate(time.Millisecond)
+	txTo.Timestamp = txTo.Timestamp.Truncate(time.Millisecond)
 	c.Assert(txFrom, gc.DeepEquals, tx)
 	c.Assert(txTo, gc.DeepEquals, tx)
 }
@@ -188,7 +191,7 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 			Hash:					strconv.Itoa(i),
 			Status: 				graph.Success,
 			Block: 				big.NewInt(111),
-			Timestamp:			time.Now(),
+			Timestamp:			time.Now().UTC(),
 			From: 				fromAddr,
 			To: 					toAddr,
 			Value: 				big.NewInt(1),

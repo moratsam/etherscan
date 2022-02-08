@@ -3,7 +3,6 @@ package graphtest
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 	"sync"
 	"time"
 
@@ -188,7 +187,7 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 	// Insert transactions
 	for i:=0; i<numTxs; i++ {
 		tx := &graph.Tx{
-			Hash:					strconv.Itoa(i),
+			Hash:					fmt.Sprint(i),
 			Status: 				graph.Success,
 			Block: 				big.NewInt(111),
 			Timestamp:			time.Now().UTC(),

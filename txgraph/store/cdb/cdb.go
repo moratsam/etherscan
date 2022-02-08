@@ -53,7 +53,7 @@ func (c *CockroachDbGraph) Close() error {
 	return c.db.Close()
 }
 
-//InsertTx inserts a new transaction
+//InsertTx inserts a new transaction.
 func (c *CockroachDbGraph) InsertTx(tx *graph.Tx) error {
 	row := c.db.QueryRow(
 		insertTxQuery,

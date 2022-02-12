@@ -5,6 +5,26 @@ import (
 	"time"
 )
 
+// Interface for receiving new blocks.
+type BlockSubscriber interface {
+	// Next blocks until a new block is received through the BlockSubscriber.
+	Next() (*Block, error)
+
+	// Close closes the BlockSubscriber.
+	Close() error
+}
+
+// Encapsulates all information about a block.
+type Block struct {
+	// The eth block number.
+	Number int
+
+	// Turns true after all transactions in the block have been processed by the pipeline
+	// and stored in the graph.
+	Processed bool
+}
+
+
 // Is implemented by graph objects that can be iterated.
 type Iterator interface {
 	// Advances the iterator. If no more items are available or an error occurs,
@@ -69,7 +89,7 @@ type Tx struct {
 	Data []byte
 }
 
-// Encapsulates all information 
+// Encapsulates all information about a wallet.
 type Wallet struct {
 	// Unique address
 	Address string
@@ -80,6 +100,12 @@ type Wallet struct {
 
 // Graph is implemented by objects that can mutate or query a tx graph.
 type Graph interface {
+	// Returns a subscriber subscribed to a stream of unprocessed blocks.
+	BlockSubscribe() (BlockSubscriber, error)
+
+	// Creates a new block or updates an existing one.
+	UpsertBlock(block *Block) error
+
 	// Creates a new tx.
 	InsertTx(tx *Tx) error
 

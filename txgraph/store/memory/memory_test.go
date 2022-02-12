@@ -17,5 +17,5 @@ type InMemoryGraphTestSuite struct {
 }
 
 func (s *InMemoryGraphTestSuite) SetUpTest(c *gc.C) {
-	s.SetGraph(NewInMemoryGraph())
+	s.SetGraph(NewInMemoryGraph(1))
 }

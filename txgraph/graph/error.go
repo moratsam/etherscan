@@ -4,7 +4,7 @@ import "golang.org/x/xerrors"
 
 var (
 	// ErrNotFound is returned when a wallet lookup fails.
-	ErrNotFound = xerrors.New("not found")
+	ErrNotFound = xerrors.New("not found.")
 
 	// ErrInvalidAddress is returned when upserting a wallet
 	// whose address is not 40 chars long.
@@ -13,4 +13,8 @@ var (
 	// ErrUnknownAddress is returned when attempting to insert a transaction whose 
 	// to or from wallet addresses have not yet been inserted into the graph.
 	ErrUnknownAddress = xerrors.New("unknown wallet address.")
+
+	// ErrChannelClosed is returned when using a BlockPublisher or BlockSubscriber
+	// after it has been closed.
+	ErrChannelClosed = xerrors.New("block channel closed.")
 )

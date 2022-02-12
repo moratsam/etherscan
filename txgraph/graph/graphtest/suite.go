@@ -22,6 +22,102 @@ func (s *SuiteBase) SetGraph(g graph.Graph) {
 	s.g = g
 }
 
+func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
+	// Insert block with high number.
+	err := s.g.UpsertBlock(&graph.Block{Number: 300})
+
+	//Wait for refreshBlocks to kick in.
+	time.Sleep(2*time.Second)
+
+	// Subscribe and check all blocks were inserted.
+	blockSubscriber, err := s.g.BlockSubscribe()
+	c.Assert(err, gc.IsNil)
+
+	seen := make(map[int]bool)
+	for i:=1; i<=300; i++ {
+		receivedBlock, err := blockSubscriber.Next()
+		c.Assert(err, gc.IsNil)
+		c.Assert(seen[receivedBlock.Number], gc.Equals, false, gc.Commentf("Block %d was seen twice", receivedBlock.Number))
+		seen[receivedBlock.Number] = true
+	}
+	for i,wasSeen := range seen {
+		c.Assert(wasSeen, gc.Equals, true, gc.Commentf("Block %d was not seen", i))
+	}
+}
+
+func (s *SuiteBase) TestBlockSubscribe(c *gc.C) {
+	var err error
+	// Insert 5 blocks
+	// Set Processed=true for blocks 1 and 3
+	for i:=1; i<=5; i++ {
+		if i==1 || i==3 {
+			err = s.g.UpsertBlock(&graph.Block{Number: i, Processed: true})
+		} else {
+			err = s.g.UpsertBlock(&graph.Block{Number: i})
+		}
+		c.Assert(err, gc.IsNil)
+	}
+
+	// Create 2 blockSubscribers
+	blockSubscriber1, err := s.g.BlockSubscribe()
+	c.Assert(err, gc.IsNil)
+	blockSubscriber2, err := s.g.BlockSubscribe()
+	c.Assert(err, gc.IsNil)
+
+	// Receive 3 blocks from each subscriber
+	seen1 := make(map[int]bool)
+	seen2 := make(map[int]bool)
+	for i:=0; i<3; i++ {
+		receivedBlock, err := blockSubscriber1.Next()
+		c.Assert(err, gc.IsNil)
+		c.Assert(seen1[receivedBlock.Number], gc.Equals, false, gc.Commentf("Block %d was seen twice", receivedBlock.Number))
+		seen1[receivedBlock.Number] = true
+
+		receivedBlock, err = blockSubscriber2.Next()
+		c.Assert(err, gc.IsNil)
+		c.Assert(seen2[receivedBlock.Number], gc.Equals, false, gc.Commentf("Block %d was seen twice", receivedBlock.Number))
+		seen2[receivedBlock.Number] = true
+	}
+
+	// Assert unprocessed blocks were seen.
+	for _, blockNumber := range []int{2,4,5} {
+		c.Assert(seen1[blockNumber], gc.Equals, true, gc.Commentf("Block %d was not seen1", blockNumber))
+		c.Assert(seen2[blockNumber], gc.Equals, true, gc.Commentf("Block %d was not seen2", blockNumber))
+	}
+}
+
+func (s *SuiteBase) TestUpsertBlock(c *gc.C) {
+	testBlockNumber1 := 1
+	testBlockNumber2 := 2
+
+	// Create and insert a new block
+	original := &graph.Block{Number: testBlockNumber1}
+	err := s.g.UpsertBlock(original)
+	c.Assert(err, gc.IsNil)
+	
+	// Update existing block, set Processed to true
+	updated := &graph.Block{
+		Number: 		testBlockNumber1,
+		Processed:	true,
+	}
+	err = s.g.UpsertBlock(updated)
+	c.Assert(err, gc.IsNil)
+
+	// Create and insert a new block
+	secondBlock := &graph.Block{Number: testBlockNumber2}
+	err = s.g.UpsertBlock(secondBlock)
+	c.Assert(err, gc.IsNil)
+
+	// Subscribe to blocks and receive a block and verify it's the secondBlock
+	blockSubscriber, err := s.g.BlockSubscribe()
+	c.Assert(err, gc.IsNil)
+	receivedBlock, err := blockSubscriber.Next()
+	c.Assert(err, gc.IsNil)
+	c.Assert(receivedBlock, gc.DeepEquals, secondBlock, gc.Commentf("Original block should not get returned because it's already processed"))
+}
+
+//func (s *SuiteBase) (c *gc.C)
+
 func (s *SuiteBase) TestInsertTx(c *gc.C) {
 	testHash := "47d8"
 	fromAddr := s.createAddressFromInt(c, 1);

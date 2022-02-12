@@ -2,6 +2,7 @@ package memory
 
 import (
 	"sync"
+	"time"
 
 	"golang.org/x/xerrors"
 
@@ -20,6 +21,7 @@ type txList []string
 type InMemoryGraph struct {
 	mu sync.RWMutex
 
+	blocks	map[int]*graph.Block			//[block number] --> Block
 	txs 		map[string]*graph.Tx 		//[tx hash] --> Tx
 	wallets	map[string]*graph.Wallet	//[wallet address] --> Wallet
 
@@ -28,12 +30,78 @@ type InMemoryGraph struct {
 	walletTxsMap map[string]txList
 }
 
-func NewInMemoryGraph() *InMemoryGraph {
-	return &InMemoryGraph{
+func NewInMemoryGraph(refreshBlocksSeconds int) *InMemoryGraph {
+	g := &InMemoryGraph{
+		blocks:			make(map[int]*graph.Block),
 		txs:				make(map[string]*graph.Tx),
 		wallets:			make(map[string]*graph.Wallet),
 		walletTxsMap:	make(map[string]txList),
 	}
+	go g.refreshBlocks(refreshBlocksSeconds)
+	return g
+
+}
+
+// Continually checks for missing blocks in the graph.
+// If a block is found to be missing, insert it.
+func (g *InMemoryGraph) refreshBlocks(refreshBlocksSeconds int) {
+	var maxBlockNumber int
+	for {
+		maxBlockNumber = -1
+		g.mu.RLock()
+		for blockNumber, _ := range g.blocks {
+			if blockNumber > maxBlockNumber {
+				maxBlockNumber = blockNumber
+			}
+		}
+		g.mu.RUnlock()
+
+		for i:=1; i<maxBlockNumber; i++ {
+			g.UpsertBlock(&graph.Block{Number: i})
+		}
+
+		time.Sleep(time.Duration(refreshBlocksSeconds) * time.Second)
+	}
+}
+
+// Returns a list of unprocessed blocks.
+func (g *InMemoryGraph) getUnprocessedBlocks() ([]*graph.Block) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	var list []*graph.Block
+	for _, block := range g.blocks {
+		if !block.Processed {
+			list = append(list, block)
+		}
+	}
+
+	return list
+}
+
+// Returns a BlockSubscriber connected to a stream of unprocessed blocks.
+func (g *InMemoryGraph) BlockSubscribe() (graph.BlockSubscriber, error) {
+	return newBlockSubscriber(g), nil
+}
+
+func (g *InMemoryGraph) UpsertBlock(block *graph.Block) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	// Check if a block with the same number already exists. 
+	// If so, potentially update it's Processed field.
+	if existing := g.blocks[block.Number]; existing != nil {
+		if !existing.Processed && block.Processed {
+			existing.Processed = block.Processed
+		}
+		return nil
+	}
+
+	//Add a copy of the block to the graph.
+	bCopy := new(graph.Block)
+	*bCopy = *block
+	g.blocks[bCopy.Number] = bCopy
+	return nil
 }
 
 // Inserts a transaction.

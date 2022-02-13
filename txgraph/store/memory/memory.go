@@ -76,7 +76,7 @@ func (g *InMemoryGraph) refreshBlocks(refreshBlocksSeconds int) {
 }
 
 // Returns a list of unprocessed blocks.
-func (g *InMemoryGraph) getUnprocessedBlocks() ([]*graph.Block) {
+func (g *InMemoryGraph) getUnprocessedBlocks() ([]*graph.Block, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
@@ -87,12 +87,16 @@ func (g *InMemoryGraph) getUnprocessedBlocks() ([]*graph.Block) {
 		}
 	}
 
-	return list
+	return list, nil
 }
 
 // Returns a BlockSubscriber connected to a stream of unprocessed blocks.
-func (g *InMemoryGraph) BlockSubscribe() (graph.BlockSubscriber, error) {
-	return newBlockSubscriber(g), nil
+func (g *InMemoryGraph) Blocks() (graph.BlockIterator, error) {
+	blocks, err := g.getUnprocessedBlocks()
+	if err != nil {
+		return nil, err
+	}
+	return &blockIterator{g: g, blocks: blocks}, nil
 }
 
 // Upserts a Block.

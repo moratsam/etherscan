@@ -110,28 +110,32 @@ func (g *CockroachDbGraph) refreshBlocks(refreshBlocksSeconds int) {
 
 // Returns a list of unprocessed blocks.
 // TODO write errors somewhere.
-func (g *CockroachDbGraph) getUnprocessedBlocks() []*graph.Block{
+func (g *CockroachDbGraph) getUnprocessedBlocks() ([]*graph.Block, error) {
 	rows, err := g.db.Query(unprocessedBlocksQuery)
-	if err != nil {
-		panic("kurbica")
-	}
 	defer rows.Close()
+	if err != nil {
+		return nil, xerrors.Errorf("get unprocessed blocks: %w", err)
+	}
 
 	var list []*graph.Block
 	for rows.Next() {
 		block := new(graph.Block)
 		if err := rows.Scan(&block.Number); err != nil {
-			panic("kurbarija")
+			return nil, xerrors.Errorf("get unprocessed blocks, scanning: %w", err)
 		}
 		list = append(list, block)
 	}
 
-	return list
+	return list, nil
 }
 
 // Returns a BlockSubscriber connected to a stream of unprocessed blocks.
-func (g *CockroachDbGraph) BlockSubscribe() (graph.BlockSubscriber, error) {
-	return newBlockSubscriber(g), nil
+func (g *CockroachDbGraph) Blocks() (graph.BlockIterator, error) {
+	blocks, err := g.getUnprocessedBlocks()
+	if err != nil {
+		return nil, err
+	}
+	return &blockIterator{g: g, blocks: blocks}, nil
 }
 
 // Upserts a Block.

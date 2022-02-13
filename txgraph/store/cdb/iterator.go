@@ -4,12 +4,75 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"math/big"
+	"sync"
 	"time"
 
 	"golang.org/x/xerrors"
 
 	"github.com/moratsam/etherscan/txgraph/graph"
 )
+
+// blockIterator is a graph.BlockIterator implementation for the cdb graph.
+type blockIterator struct {
+	g *CockroachDbGraph
+
+	mu sync.RWMutex
+
+	blocks []*graph.Block
+	curIndex int
+
+	lastErr error
+}
+
+func (i *blockIterator) Next() bool {
+	if i.lastErr != nil {
+		return false
+	}
+
+	//Wait for new blocks to come in.
+	if i.curIndex >= len(i.blocks) {
+		if ok := i.refresh(); !ok {
+			return false
+		}
+	}
+
+	i.curIndex++
+	return true
+}
+
+func (i *blockIterator) Error() error {
+	return i.lastErr
+}
+
+// Wait for new blocks to come in.
+// Return false if an error occurred while getting unprocessed blocks.
+func (i *blockIterator) refresh() bool{
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	for ; len(i.blocks) < 1; {
+		blocks, err := i.g.getUnprocessedBlocks()
+		if err != nil {
+			i.lastErr = err
+			return false
+		}
+		i.blocks = blocks
+	}
+	i.curIndex = 0
+	return true
+}
+
+func (i *blockIterator) Close() error {
+	return nil
+}
+
+func (i *blockIterator) Block() *graph.Block {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	block := new(graph.Block)
+	*block = *i.blocks[i.curIndex-1]
+	return block
+}
+
 
 // txIterator is a graph.TxIterator implementation for the cbd graph.
 type txIterator struct {

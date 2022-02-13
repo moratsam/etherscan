@@ -1,0 +1,40 @@
+package scanner
+
+import (
+	"context"
+
+	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/moratsam/etherscan/ethclient"
+	"github.com/moratsam/etherscan/txgraph/graph"
+)
+
+type Graph interface {
+	UpsertBlock(block *graph.Block) error
+}
+
+type blockInserter struct {
+	client ethclient.Client
+	graph Graph
+}
+
+
+func (i *blockInserter) start() {
+	//Make a channel which will be receiving the latest-block headers.
+	headerCh := make(chan *types.Header)
+
+	// Subscribe to head, ignore errCh.
+	errCh, err := client.SubscribeNewHead(context.Background(), headerCh)
+	if err != nil {
+		panic("subscribing new head")
+	}
+
+	for {
+		select {
+		case <-errCh.Err():
+			panic("receiving header")
+		case header := <-headerCh:
+			i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
+		}
+	}
+}

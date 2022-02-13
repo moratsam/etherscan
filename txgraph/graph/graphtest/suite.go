@@ -22,6 +22,25 @@ func (s *SuiteBase) SetGraph(g graph.Graph) {
 	s.g = g
 }
 
+func (s *SuiteBase) TestRefreshOfBlockIterator(c *gc.C) {
+	testBlock := &graph.Block{Number: 1}
+
+	blockIterator, err := s.g.Blocks()
+	c.Assert(err, gc.IsNil)
+
+	// Make a function that will insert a block after 1 second.
+	go func(block *graph.Block){
+		time.Sleep(1 * time.Second)
+		s.g.UpsertBlock(block)
+	}(testBlock)
+
+	// Because there are no unprocessed blocks when the iterator was created,
+	// this will trigger the blockIterator.refresh() function.
+	c.Assert(blockIterator.Next(), gc.Equals, true, gc.Commentf("block iterator returned false"))
+	receivedBlock := blockIterator.Block()
+	c.Assert(receivedBlock, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
+}
+
 func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
 	// Insert block with high number.
 	err := s.g.UpsertBlock(&graph.Block{Number: 300})
@@ -30,14 +49,13 @@ func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
 	//Wait for refreshBlocks to kick in.
 	time.Sleep(2*time.Second)
 
-	// Subscribe and check all blocks were inserted.
-	blockSubscriber, err := s.g.BlockSubscribe()
+	blockIterator, err := s.g.Blocks()
 	c.Assert(err, gc.IsNil)
 
 	seen := make(map[int]bool)
 	for i:=1; i<=300; i++ {
-		receivedBlock, err := blockSubscriber.Next()
-		c.Assert(err, gc.IsNil)
+		c.Assert(blockIterator.Next(), gc.Equals, true, gc.Commentf("block iterator returned false"))
+		receivedBlock := blockIterator.Block()
 		c.Assert(seen[receivedBlock.Number], gc.Equals, false, gc.Commentf("Block %d was seen twice", receivedBlock.Number))
 		seen[receivedBlock.Number] = true
 	}
@@ -46,7 +64,7 @@ func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
 	}
 }
 
-func (s *SuiteBase) TestBlockSubscribe(c *gc.C) {
+func (s *SuiteBase) TestBlockIterator(c *gc.C) {
 	var err error
 	// Insert 5 blocks
 	// Set Processed=true for blocks 1 and 3
@@ -59,22 +77,23 @@ func (s *SuiteBase) TestBlockSubscribe(c *gc.C) {
 		c.Assert(err, gc.IsNil)
 	}
 
-	// Create 2 blockSubscribers
-	blockSubscriber1, err := s.g.BlockSubscribe()
+	// Create 2 blockIterators
+	blockIterator1, err := s.g.Blocks()
 	c.Assert(err, gc.IsNil)
-	blockSubscriber2, err := s.g.BlockSubscribe()
+	blockIterator2, err := s.g.Blocks()
 	c.Assert(err, gc.IsNil)
 
-	// Receive 3 blocks from each subscriber
+	// Receive 3 blocks from each iterator 
 	seen1 := make(map[int]bool)
 	seen2 := make(map[int]bool)
 	for i:=0; i<3; i++ {
-		receivedBlock, err := blockSubscriber1.Next()
-		c.Assert(err, gc.IsNil)
+		c.Assert(blockIterator1.Next(), gc.Equals, true, gc.Commentf("block iterator 1 returned false"))
+		receivedBlock := blockIterator1.Block()
 		c.Assert(seen1[receivedBlock.Number], gc.Equals, false, gc.Commentf("Block %d was seen twice", receivedBlock.Number))
 		seen1[receivedBlock.Number] = true
 
-		receivedBlock, err = blockSubscriber2.Next()
+		c.Assert(blockIterator2.Next(), gc.Equals, true, gc.Commentf("block iterator 2 returned false"))
+		receivedBlock = blockIterator2.Block()
 		c.Assert(err, gc.IsNil)
 		c.Assert(seen2[receivedBlock.Number], gc.Equals, false, gc.Commentf("Block %d was seen twice", receivedBlock.Number))
 		seen2[receivedBlock.Number] = true
@@ -110,9 +129,10 @@ func (s *SuiteBase) TestUpsertBlock(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	// Subscribe to blocks and receive a block and verify it's the secondBlock
-	blockSubscriber, err := s.g.BlockSubscribe()
+	blockIterator, err := s.g.Blocks()
 	c.Assert(err, gc.IsNil)
-	receivedBlock, err := blockSubscriber.Next()
+	c.Assert(blockIterator.Next(), gc.Equals, true, gc.Commentf("block iterator returned false"))
+	receivedBlock := blockIterator.Block()
 	c.Assert(err, gc.IsNil)
 	c.Assert(receivedBlock, gc.DeepEquals, secondBlock, gc.Commentf("Original block should not get returned because it's already processed"))
 }

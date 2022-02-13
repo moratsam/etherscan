@@ -27,14 +27,12 @@ insert into tx(hash, status, block, timestamp, "from", "to", value, transaction_
 data) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) on conflict(hash) do update set hash=$1 
 returning hash`
   
-  upsertWalletQuery = `
-insert into wallet(address, crawled) values ($1, $2) on conflict (address) do 
-update set crawled=$2 returning crawled`
+  upsertWalletQuery = `insert into wallet(address) values ($1)
+on conflict (address) do nothing returning address`
 
-  findWalletQuery = "select crawled from wallet where address=$1"
+  findWalletQuery = "select address from wallet where address=$1"
 
-  walletsInPartitionQuery = `
-select address, crawled from wallet where address >= $1 and address < $2`
+  walletsInPartitionQuery = `select address from wallet where address >= $1 and address < $2`
 
   walletTxsQuery = `
 select hash, status, block, timestamp, "from", "to", value, transaction_fee, data 
@@ -184,15 +182,8 @@ func (g *CockroachDbGraph) UpsertWallet(wallet *graph.Wallet) error {
 	if len(wallet.Address) != 40 {
 		return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
 	}
-	// In case wallet already exists in the graph and has Crawled field set to true,
-	// make sure this is not overwritten by this upsert.
-	crawled := wallet.Crawled
-	existing, _ := g.FindWallet(wallet.Address)
-	if existing != nil && existing.Crawled {
-		crawled = true	
-	}
-	row := g.db.QueryRow(upsertWalletQuery, wallet.Address, crawled)
-	if err := row.Scan(&wallet.Crawled); err != nil {
+	row := g.db.QueryRow(upsertWalletQuery, wallet.Address)
+	if err := row.Scan(&wallet.Address); err != nil {
 		return xerrors.Errorf("upsert wallet: %w", err)
 	}
 	return nil
@@ -202,7 +193,7 @@ func (g *CockroachDbGraph) UpsertWallet(wallet *graph.Wallet) error {
 func (g *CockroachDbGraph) FindWallet(address string) (*graph.Wallet, error) {
 	row := g.db.QueryRow(findWalletQuery, address)
 	wallet := &graph.Wallet{Address: address}
-	if err := row.Scan(&wallet.Crawled); err != nil {
+	if err := row.Scan(&wallet.Address); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, xerrors.Errorf("find wallet: %w", graph.ErrNotFound)
 		}

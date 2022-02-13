@@ -93,9 +93,6 @@ type Tx struct {
 type Wallet struct {
 	// Unique address
 	Address string
-
-	// False signifies wallet has not yet been processed by the etherscan pipeline.
-	Crawled bool
 }
 
 // Graph is implemented by objects that can mutate or query a tx graph.
@@ -111,9 +108,6 @@ type Graph interface {
 	InsertTx(tx *Tx) error
 
 	// Creates a new wallet or updates an existing one.
-	// A wallet may be added because it's address is in the From/To field of a processed Tx.
-	// 	In this case, the wallet's Crawled field will be set to false.
-	// After the wallet has been crawled, the Crawled field will be set true.
 	UpsertWallet(wallet *Wallet) error
 
 	// Looks up a wallet by its address.

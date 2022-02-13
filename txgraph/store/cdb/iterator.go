@@ -88,7 +88,7 @@ func (i *walletIterator) Next() bool {
 	}
 
 	w := new(graph.Wallet)
-	i.lastErr = i.rows.Scan(&w.Address, &w.Crawled)
+	i.lastErr = i.rows.Scan(&w.Address)
 	if i.lastErr != nil {
 		return false
 	}

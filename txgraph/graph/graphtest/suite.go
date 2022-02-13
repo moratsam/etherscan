@@ -143,9 +143,9 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 	c.Assert(xerrors.Is(err, graph.ErrUnknownAddress), gc.Equals, true)
 	
 	// Insert wallets
-	err = s.g.UpsertWallet(&graph.Wallet{Address: fromAddr, Crawled: false})
+	err = s.g.UpsertWallet(&graph.Wallet{Address: fromAddr})
 	c.Assert(err, gc.IsNil)
-	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr, Crawled: false})
+	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr})
 	c.Assert(err, gc.IsNil)
 
 	//find the inserted wallets
@@ -207,42 +207,20 @@ func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
 	testAddr := s.createAddressFromInt(c, 123093432)
 
 	// Try to create a wallet with an invalid address
-	err := s.g.UpsertWallet(&graph.Wallet{Address: "abc", Crawled: false})
+	err := s.g.UpsertWallet(&graph.Wallet{Address: "abc"})
 	c.Assert(xerrors.Is(err, graph.ErrInvalidAddress), gc.Equals, true)
 
 	// Create a new wallet
 	original := &graph.Wallet{
 		Address: testAddr,
-		Crawled: false,
 	}
 	err = s.g.UpsertWallet(original)
 	c.Assert(err, gc.IsNil)
 	
-	// Update existing wallet, set Crawled to true
-	updated := &graph.Wallet{
-		Address: testAddr,
-		Crawled: true,
-	}
-	err = s.g.UpsertWallet(updated)
+	// Retrieve original wallet and verify it's equal.
+	retrieved, err := s.g.FindWallet(testAddr)
 	c.Assert(err, gc.IsNil)
-
-	// Retrieve original wallet and verify Crawled field is true
-	stored, err := s.g.FindWallet(testAddr)
-	c.Assert(err, gc.IsNil)
-	c.Assert(stored.Crawled, gc.Equals, true, gc.Commentf("Crawled field not updated to true"))
-
-	// Update existing wallet, try to set Crawled to false
-	updated = &graph.Wallet{
-		Address: testAddr,
-		Crawled: false,
-	}
-	err = s.g.UpsertWallet(updated)
-	c.Assert(err, gc.IsNil)
-
-	// Retrieve original wallet and verify Crawled field is still true
-	stored, err = s.g.FindWallet(testAddr)
-	c.Assert(err, gc.IsNil)
-	c.Assert(stored.Crawled, gc.Equals, true, gc.Commentf("Crawled field updated back to false"))
+	c.Assert(retrieved, gc.DeepEquals, original, gc.Commentf("lookup by Address returned wrong wallet"))
 }
 
 func (s *SuiteBase) TestFindWallet(c *gc.C) {
@@ -250,7 +228,6 @@ func (s *SuiteBase) TestFindWallet(c *gc.C) {
 	// Create a new wallet
 	original := &graph.Wallet{
 		Address: testAddr,
-		Crawled: false,
 	}
 	err := s.g.UpsertWallet(original)
 	c.Assert(err, gc.IsNil)
@@ -276,9 +253,9 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 	)
 
 	// Insert two wallets
-	err := s.g.UpsertWallet(&graph.Wallet{Address: fromAddr, Crawled: false})
+	err := s.g.UpsertWallet(&graph.Wallet{Address: fromAddr})
 	c.Assert(err, gc.IsNil)
-	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr, Crawled: false})
+	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr})
 	c.Assert(err, gc.IsNil)
 
 	// Insert transactions
@@ -430,25 +407,6 @@ func (s *SuiteBase) TestPartitionedWalletIterators(c *gc.C) {
 	c.Assert(s.iteratePartitionedWallets(c, numPartitions), gc.Equals, numWallets)
 	c.Assert(s.iteratePartitionedWallets(c, numPartitions+1), gc.Equals, numWallets)
 }
-
-/*
-func (s *SuiteBase) (c *gc.C) {
-	
-}
-func (s *SuiteBase) (c *gc.C) {
-	
-}
-func (s *SuiteBase) (c *gc.C) {
-	
-}
-func (s *SuiteBase) (c *gc.C) {
-	
-}
-func (s *SuiteBase) (c *gc.C) {
-	
-}
-
-*/
 
 // If address is not 40 chars long, string comparisons will not work as expected.
 // The following loop far from efficient, but it's only for tests so it should be fine.

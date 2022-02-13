@@ -19,6 +19,7 @@ var (
 )
 
 // Implements the pipeline.Payload.
+// TODO add timestamp, receives
 type scannerPayload struct {
 	BlockNumber	int
 	Txs			[]*types.Transaction

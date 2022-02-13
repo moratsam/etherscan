@@ -25,6 +25,7 @@ func (s *SuiteBase) SetGraph(g graph.Graph) {
 func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
 	// Insert block with high number.
 	err := s.g.UpsertBlock(&graph.Block{Number: 300})
+	c.Assert(err, gc.IsNil)
 
 	//Wait for refreshBlocks to kick in.
 	time.Sleep(2*time.Second)

@@ -2,6 +2,8 @@ package cdb
 
 import (
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/lib/pq"
 	"golang.org/x/xerrors"
@@ -10,7 +12,17 @@ import (
 )
 
 var (
-	insertTxQuery =`
+	allBlockNumbersQuery = `select "number" from block order by "number" desc limit 1`
+
+	unprocessedBlocksQuery = `select "number" from block where processed=false`
+
+	findBlockQuery = `select "number", processed from block where "number"=$1`
+
+	upsertBlockQuery = `
+insert into block("number", processed) values ($1, $2) on conflict ("number") do
+update set processed=$2 returning processed`
+
+	insertTxQuery = `
 insert into tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, 
 data) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) on conflict(hash) do update set hash=$1 
 returning hash`
@@ -40,22 +52,113 @@ type CockroachDbGraph struct {
 
 // NewCockroachDBGraph returns a CockroachDbGraph instance that connects to the cockroachdb
 // instance specified by dsn.
-func NewCockroachDBGraph(dsn string) (*CockroachDbGraph, error) {
+// The CockroachDbGraph checks every refreshBlocksSeconds that there are no gaps
+// in the blocks it contains. If any are found, it inserts the blocks to fill the gaps.
+// It has all blocks from block 1 to the current largest block that was inserted.
+func NewCockroachDBGraph(dsn string, refreshBlocksSeconds int) (*CockroachDbGraph, error) {
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}
-	return &CockroachDbGraph{db: db}, nil
+	g := &CockroachDbGraph{db: db}
+
+	go g.refreshBlocks(refreshBlocksSeconds)
+
+	return g, nil
 }
 
 // Close terminates the connection to the backing cockroachdb instance.
-func (c *CockroachDbGraph) Close() error {
-	return c.db.Close()
+func (g *CockroachDbGraph) Close() error {
+	return g.db.Close()
 }
 
+// Continually checks for missing blocks in the graph.
+// Insert all missing blocks, so that every block from 1 to the largest found block are
+// in the graph.
+func (g *CockroachDbGraph) refreshBlocks(refreshBlocksSeconds int) {
+	var currentBlockNumber, maxBlockNumber int
+	for {
+		// Sleep for refreshBlocksSeconds seconds.
+		time.Sleep(time.Duration(refreshBlocksSeconds) * time.Second)
+
+		// Get all block numbers
+		rows, err := g.db.Query(allBlockNumbersQuery)
+		if err != nil {
+			continue
+		}
+
+		//Mark all returned block numbers & the max block number.
+		seen := make(map[int]bool)
+		maxBlockNumber = 0
+		for rows.Next() {
+			if err := rows.Scan(&currentBlockNumber); err != nil {
+				panic("kurbarijana")
+			}
+			seen[currentBlockNumber] = true
+			if currentBlockNumber > maxBlockNumber {
+				maxBlockNumber = currentBlockNumber
+			}
+		}
+
+		// Insert missing blocks
+		for i:=1; i<maxBlockNumber; i++ {
+			_, keyExists := seen[i]
+			if ! keyExists {
+				g.UpsertBlock(&graph.Block{Number: i})
+			}
+		}
+	}
+}
+
+// Returns a list of unprocessed blocks.
+// TODO write errors somewhere.
+func (g *CockroachDbGraph) getUnprocessedBlocks() []*graph.Block{
+	rows, err := g.db.Query(unprocessedBlocksQuery)
+	if err != nil {
+		panic("kurbica")
+	}
+	defer rows.Close()
+
+	var list []*graph.Block
+	for rows.Next() {
+		block := new(graph.Block)
+		if err := rows.Scan(&block.Number); err != nil {
+			panic("kurbarija")
+		}
+		list = append(list, block)
+	}
+
+	return list
+}
+
+// Returns a BlockSubscriber connected to a stream of unprocessed blocks.
+func (g *CockroachDbGraph) BlockSubscribe() (graph.BlockSubscriber, error) {
+	return newBlockSubscriber(g), nil
+}
+
+// Upserts a Block.
+// Once the Processed field of a block equals true, it cannot be changed to false.
+func (g *CockroachDbGraph) UpsertBlock(block *graph.Block) error {
+	// In case block already exists in the graph and has Processed field set to true,
+	// make sure this is not overwritten by this upsert.
+	var processed bool
+	row := g.db.QueryRow(findBlockQuery, fmt.Sprintf("%x", block.Number))
+	row.Scan(&processed)
+	if !processed {
+		processed = block.Processed
+	}
+
+	row = g.db.QueryRow(upsertBlockQuery, block.Number, processed)
+	if err := row.Scan(&block.Processed); err != nil {
+		return xerrors.Errorf("upsert block: %w", err)
+	}
+	return nil
+}
+
+
 //InsertTx inserts a new transaction.
-func (c *CockroachDbGraph) InsertTx(tx *graph.Tx) error {
-	row := c.db.QueryRow(
+func (g *CockroachDbGraph) InsertTx(tx *graph.Tx) error {
+	row := g.db.QueryRow(
 		insertTxQuery,
 		tx.Hash,
 		tx.Status,
@@ -77,18 +180,18 @@ func (c *CockroachDbGraph) InsertTx(tx *graph.Tx) error {
 }
 
 // Upserts a wallet.
-func (c *CockroachDbGraph) UpsertWallet(wallet *graph.Wallet) error {
+func (g *CockroachDbGraph) UpsertWallet(wallet *graph.Wallet) error {
 	if len(wallet.Address) != 40 {
 		return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
 	}
 	// In case wallet already exists in the graph and has Crawled field set to true,
 	// make sure this is not overwritten by this upsert.
 	crawled := wallet.Crawled
-	existing, _ := c.FindWallet(wallet.Address)
+	existing, _ := g.FindWallet(wallet.Address)
 	if existing != nil && existing.Crawled {
 		crawled = true	
 	}
-	row := c.db.QueryRow(upsertWalletQuery, wallet.Address, crawled)
+	row := g.db.QueryRow(upsertWalletQuery, wallet.Address, crawled)
 	if err := row.Scan(&wallet.Crawled); err != nil {
 		return xerrors.Errorf("upsert wallet: %w", err)
 	}
@@ -96,8 +199,8 @@ func (c *CockroachDbGraph) UpsertWallet(wallet *graph.Wallet) error {
 }
 
 // Looks up a wallet by its address.
-func (c *CockroachDbGraph) FindWallet(address string) (*graph.Wallet, error) {
-	row := c.db.QueryRow(findWalletQuery, address)
+func (g *CockroachDbGraph) FindWallet(address string) (*graph.Wallet, error) {
+	row := g.db.QueryRow(findWalletQuery, address)
 	wallet := &graph.Wallet{Address: address}
 	if err := row.Scan(&wallet.Crawled); err != nil {
 		if err == sql.ErrNoRows {
@@ -112,8 +215,8 @@ func (c *CockroachDbGraph) FindWallet(address string) (*graph.Wallet, error) {
 
 // Returns an iterator for the set of wallets
 // whose address is in the [fromAddr, toAddr) range.
-func (c *CockroachDbGraph) Wallets(fromAddr, toAddr string) (graph.WalletIterator, error) {
-	rows, err := c.db.Query(walletsInPartitionQuery, fromAddr, toAddr)
+func (g *CockroachDbGraph) Wallets(fromAddr, toAddr string) (graph.WalletIterator, error) {
+	rows, err := g.db.Query(walletsInPartitionQuery, fromAddr, toAddr)
 	if err != nil {
 		return nil, xerrors.Errorf("wallets: %w", err)
 	}
@@ -121,8 +224,8 @@ func (c *CockroachDbGraph) Wallets(fromAddr, toAddr string) (graph.WalletIterato
 }
 
 // Returns an iterator for the set of transactions whose from or to field equals to address.
-func (c *CockroachDbGraph) WalletTxs(address string) (graph.TxIterator, error) {
-	rows, err := c.db.Query(walletTxsQuery, address)
+func (g *CockroachDbGraph) WalletTxs(address string) (graph.TxIterator, error) {
+	rows, err := g.db.Query(walletTxsQuery, address)
 	if err != nil {
 		return nil, xerrors.Errorf("walletTxs: %w", err)
 	}

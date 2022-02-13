@@ -104,6 +104,7 @@ type Graph interface {
 	BlockSubscribe() (BlockSubscriber, error)
 
 	// Creates a new block or updates an existing one.
+	// Once the Processed field of a block equals true, it cannot be changed to false.
 	UpsertBlock(block *Block) error
 
 	// Creates a new tx.

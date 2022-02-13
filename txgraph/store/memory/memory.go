@@ -30,6 +30,10 @@ type InMemoryGraph struct {
 	walletTxsMap map[string]txList
 }
 
+// NewInMemoryGraph returns an in-memory implementation of the Graph.
+// The InMemoryGraph checks every refreshBlocksSeconds that there are no gaps
+// in the blocks it contains. If any are found, it inserts the blocks to fill the gaps.
+// It has all blocks from block 1 to the current largest block that was inserted.
 func NewInMemoryGraph(refreshBlocksSeconds int) *InMemoryGraph {
 	g := &InMemoryGraph{
 		blocks:			make(map[int]*graph.Block),
@@ -43,12 +47,14 @@ func NewInMemoryGraph(refreshBlocksSeconds int) *InMemoryGraph {
 }
 
 // Continually checks for missing blocks in the graph.
-// If a block is found to be missing, insert it.
+// Insert all missing blocks, so that every block from 1 to the largest found block are
+// in the graph.
 func (g *InMemoryGraph) refreshBlocks(refreshBlocksSeconds int) {
 	var maxBlockNumber int
 	for {
-		maxBlockNumber = -1
+		maxBlockNumber = 0
 		g.mu.RLock()
+		// Find largest block.
 		for blockNumber, _ := range g.blocks {
 			if blockNumber > maxBlockNumber {
 				maxBlockNumber = blockNumber
@@ -56,10 +62,15 @@ func (g *InMemoryGraph) refreshBlocks(refreshBlocksSeconds int) {
 		}
 		g.mu.RUnlock()
 
+		// Insert missing blocks
 		for i:=1; i<maxBlockNumber; i++ {
-			g.UpsertBlock(&graph.Block{Number: i})
+			_, keyExists := g.blocks[i]
+			if ! keyExists {
+				g.UpsertBlock(&graph.Block{Number: i})
+			}
 		}
 
+		// Sleep for refreshBlocksSeconds seconds.
 		time.Sleep(time.Duration(refreshBlocksSeconds) * time.Second)
 	}
 }
@@ -84,6 +95,8 @@ func (g *InMemoryGraph) BlockSubscribe() (graph.BlockSubscriber, error) {
 	return newBlockSubscriber(g), nil
 }
 
+// Upserts a Block.
+// Once the Processed field of a block equals true, it cannot be changed to false.
 func (g *InMemoryGraph) UpsertBlock(block *graph.Block) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()

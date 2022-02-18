@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"golang.org/x/xerrors"
@@ -11,19 +12,7 @@ import (
 
 type ETHClient interface {
 	BlockByNumber(number int) (*types.Block, error)
-}
-
-// Implements ETHClient
-type ethClient struct {
-	client *ethclient.Client
-}
-
-func (e *ethClient) BlockByNumber(number int) (*types.Block, error) {
-		block, err := e.client.BlockByNumber(context.Background(), big.NewInt(int64(number)))	
-		if err != nil {
-			return nil, xerrors.Errorf("block by number: %w", err)
-		}
-		return block, nil
+	SubscribeNewHead(ctx context.Context) (<-chan *types.Header, ethereum.Subscription, error)
 }
 
 func NewETHClient() (ETHClient, error){
@@ -35,4 +24,28 @@ func NewETHClient() (ETHClient, error){
 	}
 
 	return &ethClient{client: client}, nil
+}
+
+// Implements ETHClient
+type ethClient struct {
+	client *ethclient.Client
+}
+
+// Given a block number, fetches the pertaining block.
+func (e *ethClient) BlockByNumber(number int) (*types.Block, error) {
+		block, err := e.client.BlockByNumber(context.Background(), big.NewInt(int64(number)))	
+		if err != nil {
+			return nil, xerrors.Errorf("block by number: %w", err)
+		}
+		return block, nil
+}
+
+// Subscribes to receive the latest block headers. The Subscription can be queryed foe errors.
+func (e *ethClient) SubscribeNewHead(ctx context.Context) (<-chan *types.Header, ethereum.Subscription, error) {
+	// Make a channel that will be receiving the latest block headers.
+	headerCh := make(chan *types.Header)
+
+	// Subscribe to head.
+	sub, err := e.client.SubscribeNewHead(ctx, headerCh)
+	return headerCh, sub, err
 }

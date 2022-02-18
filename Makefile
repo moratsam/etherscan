@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env deps lint lint-check-deps migrate-check-deps run-cdb-migrations test 
+.PHONY: check-cdb-env deps lint lint-check-deps migrate-check-deps mocks run-cdb-migrations test 
 
 define dsn_missing_error
 
@@ -52,6 +52,10 @@ migrate-check-deps:
 			go get -tags 'cockroachdb postgres' -u github.com/golang-migrate/migrate/v4/cmd/migrate;\
 		fi \
 	fi
+
+mocks:
+	mockgen -package mocks -destination scanner/mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
+
 
 run-cdb-migrations: migrate-check-deps check-cdb-env
 	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up

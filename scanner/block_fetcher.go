@@ -3,17 +3,16 @@ package scanner
 import (
 	"context"
 
-	"github.com/moratsam/etherscan/ethclient"
 	"github.com/moratsam/etherscan/pipeline"
 )
 
 var _ pipeline.Processor = (*blockFetcher)(nil)
 
 type blockFetcher struct {
-	client ethclient.ETHClient
+	client ETHClient
 }
 
-func newBlockFetcher(client ethclient.ETHClient) *blockFetcher {
+func newBlockFetcher(client ETHClient) *blockFetcher {
 	return &blockFetcher{client: client}
 }
 

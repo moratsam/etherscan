@@ -16,10 +16,10 @@ const zeroAddress string = "0000000000000000000000000000000000000000"
 var _ pipeline.Processor = (*txParser)(nil)
 
 type txParser struct {
-	txGraph graph.Graph
+	txGraph Graph
 }
 
-func newTxParser(txGraph graph.Graph) *txParser {
+func newTxParser(txGraph Graph) *txParser {
 	return &txParser{txGraph: txGraph}
 }
 

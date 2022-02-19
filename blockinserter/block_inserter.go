@@ -49,7 +49,10 @@ func (i *blockInserter) Start(ctx context.Context) error {
 			case <-sub.Err():
 				panic("receiving header")
 			case header := <-headerCh:
-				i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
+				err := i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
+				if err != nil {
+					panic("block inserter insert block")
+				}
 			}
 		}
 	}()

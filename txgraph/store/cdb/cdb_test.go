@@ -25,7 +25,7 @@ func (s *CockroachDbGraphTestSuite) SetUpSuite(c *gc.C) {
 		c.Skip("Missing CDB_DSN envvar; skipping cockroachdb-backed graph test suite")
 	}
 
-	g, err := NewCockroachDBGraph(dsn, 1)
+	g, err := NewCockroachDBGraph(dsn)
 	c.Assert(err, gc.IsNil)
 	s.SetGraph(g)
 	s.db = g.db
@@ -43,7 +43,9 @@ func (s *CockroachDbGraphTestSuite) TearDownSuite(c *gc.C) {
 }
 
 func (s *CockroachDbGraphTestSuite) flushDB(c *gc.C) {
-	_, err := s.db.Exec("delete from tx")
+	_, err := s.db.Exec("delete from block")
+	c.Assert(err, gc.IsNil)
+	_, err = s.db.Exec("delete from tx")
 	c.Assert(err, gc.IsNil)
 	_, err = s.db.Exec("delete from wallet")
 	c.Assert(err, gc.IsNil)

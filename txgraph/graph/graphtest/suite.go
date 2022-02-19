@@ -46,9 +46,6 @@ func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
 	err := s.g.UpsertBlock(&graph.Block{Number: 300})
 	c.Assert(err, gc.IsNil)
 
-	//Wait for refreshBlocks to kick in.
-	time.Sleep(2*time.Second)
-
 	blockIterator, err := s.g.Blocks()
 	c.Assert(err, gc.IsNil)
 

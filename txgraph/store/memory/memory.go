@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -31,52 +32,61 @@ type InMemoryGraph struct {
 }
 
 // NewInMemoryGraph returns an in-memory implementation of the Graph.
-// The InMemoryGraph checks every refreshBlocksSeconds that there are no gaps
-// in the blocks it contains. If any are found, it inserts the blocks to fill the gaps.
-// It has all blocks from block 1 to the current largest block that was inserted.
-func NewInMemoryGraph(refreshBlocksSeconds int) *InMemoryGraph {
+// It contains all blocks from block 1 to the current largest block that was inserted.
+func NewInMemoryGraph() *InMemoryGraph {
 	g := &InMemoryGraph{
 		blocks:			make(map[int]*graph.Block),
 		txs:				make(map[string]*graph.Tx),
 		wallets:			make(map[string]*graph.Wallet),
 		walletTxsMap:	make(map[string]txList),
 	}
-	go g.refreshBlocks(refreshBlocksSeconds)
+
+	go func(g *InMemoryGraph) {
+		for {
+			time.Sleep(1*time.Second)
+			g.mu.RLock()
+			fmt.Println("txs: ", len(g.txs))
+			g.mu.RUnlock()
+		}
+	}(g)
+
 	return g
 
 }
 
-// Continually checks for missing blocks in the graph.
-// Insert all missing blocks, so that every block from 1 to the largest found block are
-// in the graph.
-func (g *InMemoryGraph) refreshBlocks(refreshBlocksSeconds int) {
-	var maxBlockNumber int
-	for {
-		maxBlockNumber = 0
-		g.mu.RLock()
-		// Find largest block.
-		for blockNumber, _ := range g.blocks {
-			if blockNumber > maxBlockNumber {
-				maxBlockNumber = blockNumber
-			}
-		}
-		g.mu.RUnlock()
+// Checks for missing blocks in the graph and inserts all missing blocks, 
+// so that every block from 1 to the largest found block are in the graph.
+func (g *InMemoryGraph) refreshBlocks() error {
+	maxBlockNumber := 0
 
-		// Insert missing blocks
-		for i:=1; i<maxBlockNumber; i++ {
-			_, keyExists := g.blocks[i]
-			if ! keyExists {
-				g.UpsertBlock(&graph.Block{Number: i})
-			}
+	// Find largest block.
+	g.mu.RLock()
+	for blockNumber, _ := range g.blocks {
+		if blockNumber > maxBlockNumber {
+			maxBlockNumber = blockNumber
 		}
-
-		// Sleep for refreshBlocksSeconds seconds.
-		time.Sleep(time.Duration(refreshBlocksSeconds) * time.Second)
 	}
+	g.mu.RUnlock()
+
+	// Insert missing blocks.
+	for i:=1; i<maxBlockNumber; i++ {
+		_, keyExists := g.blocks[i]
+		if ! keyExists {
+			if err := g.UpsertBlock(&graph.Block{Number: i}); err != nil {
+				return xerrors.Errorf("refreshing blocks: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 // Returns a list of unprocessed blocks.
 func (g *InMemoryGraph) getUnprocessedBlocks() ([]*graph.Block, error) {
+	// First refresh the blocks.
+	if err := g.refreshBlocks(); err != nil {
+		return nil, err
+	}
+
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 

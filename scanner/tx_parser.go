@@ -70,7 +70,7 @@ func (tp *txParser) parseTo(tx *types.Transaction) string {
 	if addr == nil {
 		return zeroAddress
 	} else {
-		return addr.String()
+		return addr.String()[2:]
 	}
 }
 

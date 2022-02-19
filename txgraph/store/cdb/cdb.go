@@ -3,7 +3,6 @@ package cdb
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/lib/pq"
 	"golang.org/x/xerrors"
@@ -12,7 +11,7 @@ import (
 )
 
 var (
-	allBlockNumbersQuery = `select "number" from block order by "number" desc limit 1`
+	allBlockNumbersQuery = `select "number" from block order by "number" desc`
 
 	unprocessedBlocksQuery = `select "number" from block where processed=false`
 
@@ -50,19 +49,13 @@ type CockroachDbGraph struct {
 
 // NewCockroachDBGraph returns a CockroachDbGraph instance that connects to the cockroachdb
 // instance specified by dsn.
-// The CockroachDbGraph checks every refreshBlocksSeconds that there are no gaps
-// in the blocks it contains. If any are found, it inserts the blocks to fill the gaps.
-// It has all blocks from block 1 to the current largest block that was inserted.
-func NewCockroachDBGraph(dsn string, refreshBlocksSeconds int) (*CockroachDbGraph, error) {
+// It contains all blocks from block 1 to the current largest block that was inserted.
+func NewCockroachDBGraph(dsn string) (*CockroachDbGraph, error) {
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}
-	g := &CockroachDbGraph{db: db}
-
-	go g.refreshBlocks(refreshBlocksSeconds)
-
-	return g, nil
+	return &CockroachDbGraph{db: db}, nil
 }
 
 // Close terminates the connection to the backing cockroachdb instance.
@@ -70,47 +63,49 @@ func (g *CockroachDbGraph) Close() error {
 	return g.db.Close()
 }
 
-// Continually checks for missing blocks in the graph.
-// Insert all missing blocks, so that every block from 1 to the largest found block are
-// in the graph.
-func (g *CockroachDbGraph) refreshBlocks(refreshBlocksSeconds int) {
+// Checks for missing blocks in the graph and inserts all missing blocks, 
+// so that every block from 1 to the largest found block are in the graph.
+func (g *CockroachDbGraph) refreshBlocks() error {
 	var currentBlockNumber, maxBlockNumber int
-	for {
-		// Sleep for refreshBlocksSeconds seconds.
-		time.Sleep(time.Duration(refreshBlocksSeconds) * time.Second)
 
-		// Get all block numbers
-		rows, err := g.db.Query(allBlockNumbersQuery)
-		if err != nil {
-			continue
+	// Get all block numbers
+	rows, err := g.db.Query(allBlockNumbersQuery)
+	if err != nil {
+		return xerrors.Errorf("refreshing blocks query: %w", err)
+	}
+
+	//Mark all returned block numbers & the max block number.
+	seen := make(map[int]bool)
+	maxBlockNumber = 0
+	for rows.Next() {
+		if err := rows.Scan(&currentBlockNumber); err != nil {
+			return xerrors.Errorf("refreshing blocks scan: %w", err)
 		}
-
-		//Mark all returned block numbers & the max block number.
-		seen := make(map[int]bool)
-		maxBlockNumber = 0
-		for rows.Next() {
-			if err := rows.Scan(&currentBlockNumber); err != nil {
-				panic("kurbarijana")
-			}
-			seen[currentBlockNumber] = true
-			if currentBlockNumber > maxBlockNumber {
-				maxBlockNumber = currentBlockNumber
-			}
+		seen[currentBlockNumber] = true
+		if currentBlockNumber > maxBlockNumber {
+			maxBlockNumber = currentBlockNumber
 		}
+	}
 
-		// Insert missing blocks
-		for i:=1; i<maxBlockNumber; i++ {
-			_, keyExists := seen[i]
-			if ! keyExists {
-				g.UpsertBlock(&graph.Block{Number: i})
+	// Insert missing blocks
+	for i:=1; i<maxBlockNumber; i++ {
+		_, keyExists := seen[i]
+		if ! keyExists {
+			if err := g.UpsertBlock(&graph.Block{Number: i}); err != nil {
+				return xerrors.Errorf("refreshing blocks upsert: %w", err)
 			}
 		}
 	}
+	return nil
 }
 
 // Returns a list of unprocessed blocks.
-// TODO write errors somewhere.
 func (g *CockroachDbGraph) getUnprocessedBlocks() ([]*graph.Block, error) {
+	// First refresh the blocks.
+	if err := g.refreshBlocks(); err != nil {
+		return nil, err
+	}
+
 	rows, err := g.db.Query(unprocessedBlocksQuery)
 	defer rows.Close()
 	if err != nil {
@@ -149,6 +144,8 @@ func (g *CockroachDbGraph) UpsertBlock(block *graph.Block) error {
 	if !processed {
 		processed = block.Processed
 	}
+
+	fmt.Println("Upserted block", block.Number)
 
 	row = g.db.QueryRow(upsertBlockQuery, block.Number, processed)
 	if err := row.Scan(&block.Processed); err != nil {

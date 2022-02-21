@@ -32,7 +32,7 @@ func main() {
 	cfg := scanner.Config{
 		ETHClient: ethClient,
 		Graph: txGraph,
-		FetchWorkers: 100,
+		FetchWorkers: 30,
 	}
 
 	blockIterator, err := txGraph.Blocks()

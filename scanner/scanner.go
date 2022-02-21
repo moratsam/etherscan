@@ -70,7 +70,7 @@ func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
 	)
 }
 
-// Scan iterates blockIt and sends each block through the scanner pipeline
+// Scan iterates blockIt and sends each block through the scanner pipeline,
 // returning the total count of blocks that went through the pipeline.
 // Calls to Scan block until the block iterator is exhausted (which never happens),
 // or an error occurs or the context is cancelled.
@@ -95,7 +95,6 @@ func (so *blockSource) Next(context.Context) bool	{ return so.blockIt.Next() }
 // Fetch a Payload instance from the pool, populate it with a Block fetched from the blockIt.
 func (so *blockSource) Payload() pipeline.Payload {
 	block := so.blockIt.Block()
-	fmt.Println("blockIt get block: ", block.Number)
 	payload := payloadPool.Get().(*scannerPayload)
 	payload.BlockNumber = block.Number
 	return payload
@@ -123,6 +122,7 @@ func (si *countingSink) Consume(_ context.Context, p pipeline.Payload) error {
 		return err
 	}
 
+	fmt.Println("scanner consumed block: ", block.Number)
 	return nil
 }
 

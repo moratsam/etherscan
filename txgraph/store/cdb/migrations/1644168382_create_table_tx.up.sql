@@ -7,5 +7,5 @@ create table if not exists tx (
 	"to" varchar(40) not null references wallet(address) on delete cascade,
 	value numeric not null default 0,
 	transaction_fee numeric not null,
-	data text
+	data bytea
 );

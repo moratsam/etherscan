@@ -3,6 +3,7 @@ package cdb
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/lib/pq"
 	"golang.org/x/xerrors"
@@ -63,6 +64,22 @@ func (g *CockroachDbGraph) Close() error {
 	return g.db.Close()
 }
 
+//Bulk insert blocks whose numbers are the first batchIx numbers in blockNumbers array.
+func (g *CockroachDbGraph) bulkInsertBlocks(blockNumbers []int, batchIx int) error {
+	valueStrings := make([]string, 0, batchIx)
+	valueArgs := make([]interface{}, 0, batchIx * 2)
+	i := 0
+	for j:=0; j<batchIx; j++ {
+	  valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2))
+	  valueArgs = append(valueArgs, blockNumbers[j])
+	  valueArgs = append(valueArgs, false)
+	  i++
+	}
+	stmt := fmt.Sprintf(`INSERT INTO block("number", processed) VALUES %s`, strings.Join(valueStrings, ","))
+	_, err := g.db.Exec(stmt, valueArgs...)
+	return err
+}
+
 // Checks for missing blocks in the graph and inserts all missing blocks, 
 // so that every block from 1 to the largest found block are in the graph.
 func (g *CockroachDbGraph) refreshBlocks() error {
@@ -87,15 +104,29 @@ func (g *CockroachDbGraph) refreshBlocks() error {
 		}
 	}
 
-	// Insert missing blocks
+	// Insert missing blocks in batches.
+	batchSize := 10000
+	batch := make([]int, batchSize)
+	batchIx := 0
 	for i:=1; i<maxBlockNumber; i++ {
 		_, keyExists := seen[i]
 		if ! keyExists {
-			if err := g.UpsertBlock(&graph.Block{Number: i}); err != nil {
-				return xerrors.Errorf("refreshing blocks upsert: %w", err)
+			batch[batchIx] = i	
+			batchIx++
+		}
+		if batchIx == batchSize {
+			if err := g.bulkInsertBlocks(batch, batchIx); err != nil {
+				return xerrors.Errorf("refreshing blocks bulk insert: %w", err)
 			}
+			batchIx = 0
 		}
 	}
+	if batchIx > 0 {
+		if err := g.bulkInsertBlocks(batch, batchIx); err != nil {
+			return xerrors.Errorf("refreshing blocks bulk insert: %w", err)
+		}
+	}
+
 	return nil
 }
 

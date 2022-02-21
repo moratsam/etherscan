@@ -39,7 +39,7 @@ func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.P
 
 		// Insert transaction
 		graphTx := &graph.Tx{
-			Hash: 				tx.Hash().String(),
+			Hash: 				tx.Hash().String()[2:],
 			Status: 				tp.parseStatus(tx),
 			Block: 				big.NewInt(int64(payload.BlockNumber)),
 			Timestamp:			time.Now(), //TODO

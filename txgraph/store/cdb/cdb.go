@@ -27,7 +27,7 @@ data) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) on conflict(hash) do update se
 returning hash`
   
   upsertWalletQuery = `insert into wallet(address) values ($1)
-on conflict (address) do nothing returning address`
+on conflict (address) do update set address=$1 returning address`
 
   findWalletQuery = "select address from wallet where address=$1"
 
@@ -144,8 +144,6 @@ func (g *CockroachDbGraph) UpsertBlock(block *graph.Block) error {
 	if !processed {
 		processed = block.Processed
 	}
-
-	fmt.Println("Upserted block", block.Number)
 
 	row = g.db.QueryRow(upsertBlockQuery, block.Number, processed)
 	if err := row.Scan(&block.Processed); err != nil {

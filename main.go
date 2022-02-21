@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		fmt.Println("block iterator", err)
 	}
-	_, err = scanner.NewScanner(cfg).Scan(context.Background(), blockIterator)
+	_, err = scanner.NewScanner(cfg).Scan(context.Background(), blockIterator, txGraph)
 	if err != nil {
 		fmt.Println("scan", err)
 	}

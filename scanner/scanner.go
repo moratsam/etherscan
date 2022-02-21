@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/types"
 
@@ -16,7 +17,7 @@ type ETHClient interface {
 	BlockByNumber(number int) (*types.Block, error)
 }
 
-// Graph is implemented by objects that can insert transactions and upsert wallets
+// Graph is implemented by objects that can insert transactions and upsert wallets, blocks
 // into a tx graph instance.
 type Graph interface {
 	// Creates a new tx.
@@ -24,6 +25,9 @@ type Graph interface {
 
 	// Creates a new wallet or updates an existing one.
 	UpsertWallet(wallet *graph.Wallet) error
+
+	// Creates a new block or updates an existing one.
+	UpsertBlock(block *graph.Block) error
 }
 
 // Config encapsulates the configuration options for creating a new Scanner.
@@ -38,7 +42,7 @@ type Config struct {
 	FetchWorkers int
 }
 
-// Scanner implements a eth blockchain scanning pipeline consisting of the following stages:
+// Scanner implements an eth blockchain scanning pipeline consisting of the following stages:
 // - Given a block number, retrieve the block and some additional block-related data
 // - Parse all transactions in a block and insert the data into transaction graph.
 type Scanner struct {
@@ -70,14 +74,16 @@ func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
 // returning the total count of blocks that went through the pipeline.
 // Calls to Scan block until the block iterator is exhausted (which never happens),
 // or an error occurs or the context is cancelled.
-func (s *Scanner) Scan(ctx context.Context, blockIt graph.BlockIterator) (int, error) {
-	sink := new(countingSink)
+func (s *Scanner) Scan(ctx context.Context, blockIt graph.BlockIterator, txGraph Graph) (int, error) {
+	sink := &countingSink{
+		txGraph: txGraph,
+	}
 	err := s.p.Process(ctx, &blockSource{blockIt: blockIt}, sink)
 	return sink.getCount(), err
 }
 
 // Implements the pipeline.Source.
-// The source for the scanner pipeline is large part just a wrapper for the
+// The source for the scanner pipeline is in large part just a wrapper for the
 // graph.BlockIterator
 type blockSource struct {
 	blockIt graph.BlockIterator
@@ -89,6 +95,7 @@ func (so *blockSource) Next(context.Context) bool	{ return so.blockIt.Next() }
 // Fetch a Payload instance from the pool, populate it with a Block fetched from the blockIt.
 func (so *blockSource) Payload() pipeline.Payload {
 	block := so.blockIt.Block()
+	fmt.Println("blockIt get block: ", block.Number)
 	payload := payloadPool.Get().(*scannerPayload)
 	payload.BlockNumber = block.Number
 	return payload
@@ -96,14 +103,26 @@ func (so *blockSource) Payload() pipeline.Payload {
 
 // Implements the pipeline.Sink.
 type countingSink struct {
+	txGraph Graph
+
 	count int	
 }
 
-// Consume can be empty because the scanner pipeline inserts to the graph in a previous stage.
+// If Consume has been reached, the payload has been succesfully processed. In this case,
+// the block.Processed should be set to true.
 // Once the Consume returns, the pipeline worker automatically invokes MarkAsProcessed
 // on the payload, which ensures the payload is returned to the payloadPool.
 func (si *countingSink) Consume(_ context.Context, p pipeline.Payload) error {
 	si.count++
+
+	block := &graph.Block{
+		Number: p.(*scannerPayload).BlockNumber,
+		Processed: true,
+	}
+	if err := si.txGraph.UpsertBlock(block); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -26,6 +26,9 @@ func newTxParser(txGraph Graph) *txParser {
 func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.Payload, error) {
 	payload := p.(*scannerPayload)
 	
+	// Insert transactions in batches.
+	batchSize := 20
+	var batch []*graph.Tx
 	for _, tx := range payload.Txs {
 		// First upsert the To and From wallets.
 		from := tp.parseFrom(tx)
@@ -37,7 +40,7 @@ func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.P
 			return nil, err
 		}
 
-		// Insert transaction
+		//Create transaction and append it.
 		graphTx := &graph.Tx{
 			Hash: 				tx.Hash().String()[2:],
 			Status: 				tp.parseStatus(tx),
@@ -49,7 +52,17 @@ func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.P
 			TransactionFee:	tp.parseCost(tx),
 			Data: 				tx.Data(),
 		}
-		if err := tp.txGraph.InsertTx(graphTx); err != nil {
+		batch = append(batch, graphTx)
+
+		if len(batch) == batchSize {
+			if err := tp.txGraph.InsertTxs(batch); err != nil {
+				return nil, err
+			}
+			batch = batch[:0]
+		}
+	}
+	if len(batch) > 0 {
+		if err := tp.txGraph.InsertTxs(batch); err != nil {
 			return nil, err
 		}
 	}

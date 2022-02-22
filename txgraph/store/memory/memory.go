@@ -132,30 +132,32 @@ func (g *InMemoryGraph) UpsertBlock(block *graph.Block) error {
 }
 
 // Inserts a transaction.
-func (g *InMemoryGraph) InsertTx(tx *graph.Tx) error {
+func (g *InMemoryGraph) InsertTxs(txs []*graph.Tx) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	// If wallets connected to this transaction are unknown, return error.
-	_, fromExists := g.wallets[tx.From]
-	_, toExists := g.wallets[tx.To]
-	if !fromExists || !toExists {
-		return xerrors.Errorf("insert tx: %w", graph.ErrUnknownAddress)
+	for _,tx := range txs {
+		// If wallets connected to this transaction are unknown, return error.
+		_, fromExists := g.wallets[tx.From]
+		_, toExists := g.wallets[tx.To]
+		if !fromExists || !toExists {
+			return xerrors.Errorf("insert tx: %w", graph.ErrUnknownAddress)
+		}
+
+		// If a tx with the given hash already exists, do nothing.
+		if existing := g.txs[tx.Hash]; existing != nil {
+			continue
+		}
+
+		// Add a copy of the transaction to the graph.
+		txCopy := new(graph.Tx)
+		*txCopy = *tx
+		g.txs[txCopy.Hash] = txCopy
+
+		// Append the transaction hash to txLists for wallets listed in To and From
+		g.walletTxsMap[txCopy.From] = append(g.walletTxsMap[txCopy.From], txCopy.Hash)
+		g.walletTxsMap[txCopy.To] = append(g.walletTxsMap[txCopy.To], txCopy.Hash)
 	}
-
-	// If a tx with the given hash already exists, do nothing.
-	if existing := g.txs[tx.Hash]; existing != nil {
-		return nil
-	}
-
-	// Add a copy of the transaction to the graph.
-	txCopy := new(graph.Tx)
-	*txCopy = *tx
-	g.txs[txCopy.Hash] = txCopy
-
-	// Append the transaction hash to txLists for wallets listed in To and From
-	g.walletTxsMap[txCopy.From] = append(g.walletTxsMap[txCopy.From], txCopy.Hash)
-	g.walletTxsMap[txCopy.To] = append(g.walletTxsMap[txCopy.To], txCopy.Hash)
 	return nil
 }
 

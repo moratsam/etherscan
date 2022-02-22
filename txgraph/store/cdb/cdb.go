@@ -22,11 +22,6 @@ var (
 insert into block("number", processed) values ($1, $2) on conflict ("number") do
 update set processed=$2 returning processed`
 
-	insertTxQuery = `
-insert into tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, 
-data) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) on conflict(hash) do update set hash=$1 
-returning hash`
-  
   upsertWalletQuery = `insert into wallet(address) values ($1)
 on conflict (address) do update set address=$1 returning address`
 
@@ -64,16 +59,16 @@ func (g *CockroachDbGraph) Close() error {
 	return g.db.Close()
 }
 
-//Bulk insert blocks whose numbers are the first batchIx numbers in blockNumbers array.
-func (g *CockroachDbGraph) bulkInsertBlocks(blockNumbers []int, batchIx int) error {
-	valueStrings := make([]string, 0, batchIx)
-	valueArgs := make([]interface{}, 0, batchIx * 2)
-	i := 0
-	for j:=0; j<batchIx; j++ {
-	  valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2))
-	  valueArgs = append(valueArgs, blockNumbers[j])
+//Bulk insert blocks whose numbers are in blockNumbers array.
+func (g *CockroachDbGraph) bulkInsertBlocks(blockNumbers []int) error {
+	numArgs := 2 // Number of columns in the block table.
+	fmt.Println("bulk inserting blocks: ", len(blockNumbers))
+	valueStrings := make([]string, 0, len(blockNumbers))
+	valueArgs := make([]interface{}, 0, numArgs * len(blockNumbers))
+	for i,blockNumber := range blockNumbers {
+	  valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*numArgs+1, i*numArgs+2))
+	  valueArgs = append(valueArgs, blockNumber)
 	  valueArgs = append(valueArgs, false)
-	  i++
 	}
 	stmt := fmt.Sprintf(`INSERT INTO block("number", processed) VALUES %s`, strings.Join(valueStrings, ","))
 	_, err := g.db.Exec(stmt, valueArgs...)
@@ -106,23 +101,21 @@ func (g *CockroachDbGraph) refreshBlocks() error {
 
 	// Insert missing blocks in batches.
 	batchSize := 10000
-	batch := make([]int, batchSize)
-	batchIx := 0
+	var batch []int
 	for i:=1; i<maxBlockNumber; i++ {
 		_, keyExists := seen[i]
 		if ! keyExists {
-			batch[batchIx] = i	
-			batchIx++
+			batch = append(batch, i)
 		}
-		if batchIx == batchSize {
-			if err := g.bulkInsertBlocks(batch, batchIx); err != nil {
+		if len(batch) == batchSize {
+			if err := g.bulkInsertBlocks(batch); err != nil {
 				return xerrors.Errorf("refreshing blocks bulk insert: %w", err)
 			}
-			batchIx = 0
+			batch = batch[:0]
 		}
 	}
-	if batchIx > 0 {
-		if err := g.bulkInsertBlocks(batch, batchIx); err != nil {
+	if len(batch) > 0 {
+		if err := g.bulkInsertBlocks(batch); err != nil {
 			return xerrors.Errorf("refreshing blocks bulk insert: %w", err)
 		}
 	}
@@ -184,25 +177,30 @@ func (g *CockroachDbGraph) UpsertBlock(block *graph.Block) error {
 }
 
 
-//InsertTx inserts a new transaction.
-func (g *CockroachDbGraph) InsertTx(tx *graph.Tx) error {
-	row := g.db.QueryRow(
-		insertTxQuery,
-		tx.Hash,
-		tx.Status,
-		tx.Block.String(),
-		tx.Timestamp.UTC(),
-		tx.From,
-		tx.To,
-		tx.Value.String(),
-		tx.TransactionFee.String(),
-		tx.Data,
-	)
-	if err := row.Scan(&tx.Hash); err != nil {
+// InsertTxs inserts new transactions.
+// Not the nicest code, constructing a raw bulk insert SQL statement.
+func (g *CockroachDbGraph) InsertTxs(txs []*graph.Tx) error {
+	numArgs := 9 // Number of columns in the tx table.
+	valueStrings := make([]string, 0, len(txs))
+	valueArgs := make([]interface{}, 0, numArgs * len(txs))
+	for i,tx := range txs {
+	  valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)", i*numArgs+1, i*numArgs+2, i*numArgs+3, i*numArgs+4, i*numArgs+5, i*numArgs+6, i*numArgs+7, i*numArgs+8, i*numArgs+9))
+	  valueArgs = append(valueArgs, tx.Hash)
+	  valueArgs = append(valueArgs, tx.Status)
+	  valueArgs = append(valueArgs, tx.Block.String())
+	  valueArgs = append(valueArgs, tx.Timestamp.UTC())
+	  valueArgs = append(valueArgs, tx.From)
+	  valueArgs = append(valueArgs, tx.To)
+	  valueArgs = append(valueArgs, tx.Value.String())
+	  valueArgs = append(valueArgs, tx.TransactionFee.String())
+	  valueArgs = append(valueArgs, tx.Data)
+	}
+	stmt := fmt.Sprintf(`INSERT INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
+	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
 		if isForeignKeyViolationError(err) {
 			err = graph.ErrUnknownAddress
 		}
-		return xerrors.Errorf("insert tx: %w", err)
+		return xerrors.Errorf("insert txs: %w", err)
 	}
 	return nil
 }

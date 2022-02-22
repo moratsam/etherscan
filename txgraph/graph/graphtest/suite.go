@@ -136,7 +136,7 @@ func (s *SuiteBase) TestUpsertBlock(c *gc.C) {
 
 //func (s *SuiteBase) (c *gc.C)
 
-func (s *SuiteBase) TestInsertTx(c *gc.C) {
+func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	testHash := "47d8"
 	fromAddr := s.createAddressFromInt(c, 1);
 	toAddr := s.createAddressFromInt(c, 2);
@@ -156,7 +156,7 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 	}
 
 	// Try to insert a tx without prior inserting the wallets
-	err := s.g.InsertTx(tx)
+	err := s.g.InsertTxs([]*graph.Tx{tx})
 	c.Assert(xerrors.Is(err, graph.ErrUnknownAddress), gc.Equals, true)
 	
 	// Insert wallets
@@ -175,12 +175,12 @@ func (s *SuiteBase) TestInsertTx(c *gc.C) {
 
 
 	// Insert transaction
-	err = s.g.InsertTx(tx)
+	err = s.g.InsertTxs([]*graph.Tx{tx})
 	c.Assert(err, gc.IsNil)
 
 	// Change a field and attempt to re-insert the tx, the change it back to state.
 	tx.Value = changedValue
-	err = s.g.InsertTx(tx)
+	err = s.g.InsertTxs([]*graph.Tx{tx})
 	c.Assert(err, gc.IsNil)
 	tx.Value = initValue
 
@@ -276,6 +276,7 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	// Insert transactions
+	var txs []*graph.Tx
 	for i:=0; i<numTxs; i++ {
 		tx := &graph.Tx{
 			Hash:					fmt.Sprint(i),
@@ -288,9 +289,10 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 			TransactionFee:	big.NewInt(323),
 			Data: 				make([]byte, 10),
 		}
-		err := s.g.InsertTx(tx)
-		c.Assert(err, gc.IsNil)
+		txs = append(txs, tx)
 	}
+	err = s.g.InsertTxs(txs)
+	c.Assert(err, gc.IsNil)
 
 	wg.Add(numIterators)
 	for i:=0; i<numIterators; i++ {

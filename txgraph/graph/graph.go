@@ -102,8 +102,8 @@ type Graph interface {
 	// Once the Processed field of a block equals true, it cannot be changed to false.
 	UpsertBlock(block *Block) error
 
-	// Creates a new tx.
-	InsertTx(tx *Tx) error
+	// Inserts new transactions.
+	InsertTxs(tx []*Tx) error
 
 	// Creates a new wallet or updates an existing one.
 	UpsertWallet(wallet *Wallet) error

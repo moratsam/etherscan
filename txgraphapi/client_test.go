@@ -37,7 +37,10 @@ func (s *ClientTestSuite) TestUpsertBlock(c *gc.C) {
 			Number: 		int32(block.Number),
 			Processed:	block.Processed,
 		},
-	).Return(nil)
+	).Return(
+		nil,
+		nil,
+	)
 
 	cli := txgraphapi.NewTxGraphClient(context.TODO(), rpcCli)
 	err := cli.UpsertBlock(block)

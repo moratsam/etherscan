@@ -13,6 +13,8 @@ import (
 	"github.com/moratsam/etherscan/txgraphapi/proto"
 )
 
+//go:generate mockgen -package mocks -destination mocks/mock.go github.com/moratsam/etherscan/txgraphapi/proto TxGraphClient,TxGraph_BlocksClient,TxGraph_WalletTxsClient,TxGraph_WalletsClient
+
 // TxGraphClient provides an API compatible with the graph.Graph interface
 // for accessing graph instances exposed by a remote gRPC server.
 type TxGraphClient struct {

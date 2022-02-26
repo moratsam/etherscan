@@ -63,6 +63,7 @@ migrate-check-deps:
 
 mocks:
 	mockgen -package mocks -destination scanner/mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
+	mockgen -package mocks -destination txgraphapi/mocks/mock.go github.com/moratsam/etherscan/txgraphapi/proto TxGraphClient,TxGraph_BlocksClient,TxGraph_WalletTxsClient,TxGraph_WalletsClient
 
 proto: ensure-proto-deps
 	@echo "[protoc] generating protos for API"

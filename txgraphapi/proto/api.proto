@@ -1,0 +1,67 @@
+syntax="proto3";
+package proto;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Describes a block in the txgraph.
+message Block {
+	int32 number	= 1;
+	bool processed = 2;
+}
+
+// Describes a transaction in the txgraph.
+message Tx {
+	enum TxStatus {
+		Fail = 0;
+		Success = 1;
+		Unknown = 2;
+	}
+
+	string hash = 1;
+	TxStatus Status = 2;
+	string block = 3;
+	google.protobuf.Timestamp timestamp = 4;
+	string from = 5;
+	string to = 6;
+	string value = 7;
+	string transaction_fee = 8;
+	bytes data = 9;
+
+}
+
+message Txs {
+	repeated Tx txs = 1;
+}
+
+// Describes a wallet in the txgraph.
+message Wallet {
+	string address = 1;
+}
+
+// Specifies the [fromAddress, toAddress) range to use when calling Wallets.
+message Range {
+	string fromAddress = 1;
+	string toAddress = 2;
+}
+
+// TxGraph provides an RPC layer for accessing a txgraph store.
+service TxGraph {
+	// Streams unprocessed blocks.
+	rpc Blocks(google.protobuf.Empty) returns (stream Block);
+
+	// Upserts a block.
+	rpc UpsertBlock(Block) returns (google.protobuf.Empty);
+
+	// Inserts the transactions.
+	rpc InsertTxs(Txs) returns (google.protobuf.Empty);
+
+	// Upserts a wallet.
+	rpc UpsertWallet(Wallet) returns (google.protobuf.Empty);
+
+	// Streams all transactions connected to a wallet.
+	rpc WalletTxs(Wallet) returns (stream Tx);
+
+	// Streams all wallets in the specified range.
+	rpc Wallets(Range) returns (stream Wallet);
+}

@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env deps lint lint-check-deps migrate-check-deps mocks run-cdb-migrations test 
+.PHONY: check-cdb-env deps ensure-proto-deps lint lint-check-deps migrate-check-deps mocks proto run-cdb-migrations test 
 
 define dsn_missing_error
 
@@ -24,6 +24,14 @@ deps:
 		go get -u github.com/golang/dep/cmd/dep;\
 		dep ensure;\
 	fi
+
+ensure-proto-deps:
+	@echo "[go get] ensuring protoc packages are available"
+	@go get github.com/gogo/protobuf/protoc-gen-gofast
+	@go get github.com/gogo/protobuf/proto
+	@go get github.com/gogo/protobuf/jsonpb
+	@go get github.com/gogo/protobuf/protoc-gen-gogo
+	@go get github.com/gogo/protobuf/gogoproto
 
 lint: lint-check-deps
 	@echo "[golangci-lint] linting sources"
@@ -55,6 +63,13 @@ migrate-check-deps:
 
 mocks:
 	mockgen -package mocks -destination scanner/mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
+
+proto: ensure-proto-deps
+	@echo "[protoc] generating protos for API"
+	@protoc --gofast_out=\
+	Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,\
+	plugins=grpc:. \
+	txgraphapi/proto/api.proto
 
 
 run-cdb-migrations: migrate-check-deps check-cdb-env

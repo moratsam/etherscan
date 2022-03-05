@@ -105,8 +105,8 @@ type Graph interface {
 	// Inserts new transactions.
 	InsertTxs(tx []*Tx) error
 
-	// Creates a new wallet or updates an existing one.
-	UpsertWallet(wallet *Wallet) error
+	// Creates new wallets or updates existing ones.
+	UpsertWallets(wallets []*Wallet) error
 
 	// Looks up a wallet by its address.
 	// Note: Currently not being used.

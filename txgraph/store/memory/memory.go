@@ -163,23 +163,25 @@ func (g *InMemoryGraph) InsertTxs(txs []*graph.Tx) error {
 }
 
 // Upserts a Wallet.
-func (g *InMemoryGraph) UpsertWallet(wallet *graph.Wallet) error {
+func (g *InMemoryGraph) UpsertWallets(wallets []*graph.Wallet) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if len(wallet.Address) != 40 {
-		return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
-	}
+	for _,wallet := range wallets {
+		if len(wallet.Address) != 40 {
+			return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
+		}
 
-	// Check if a wallet with the same address already exists. 
-	if existing := g.wallets[wallet.Address]; existing != nil {
-		return nil
-	}
+		// Check if a wallet with the same address already exists. 
+		if existing := g.wallets[wallet.Address]; existing != nil {
+			continue
+		}
 
-	//Add a copy of the wallet to the graph.
-	wCopy := new(graph.Wallet)
-	*wCopy = *wallet
-	g.wallets[wCopy.Address] = wCopy
+		//Add a copy of the wallet to the graph.
+		wCopy := new(graph.Wallet)
+		*wCopy = *wallet
+		g.wallets[wCopy.Address] = wCopy
+	}
 	return nil
 }
 

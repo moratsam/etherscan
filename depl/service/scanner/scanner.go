@@ -26,7 +26,7 @@ type GraphAPI interface {
 	Blocks() (graph.BlockIterator, error)
 	UpsertBlock(block *graph.Block) error
 	InsertTxs(txs []*graph.Tx) error
-	UpsertWallet(wallet *graph.Wallet) error
+	UpsertWallets(wallets []*graph.Wallet) error
 }
 
 // Config encapsulates the settings for configuring the eth-scanner service.

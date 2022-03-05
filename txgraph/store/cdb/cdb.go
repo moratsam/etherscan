@@ -22,9 +22,6 @@ var (
 insert into block("number", processed) values ($1, $2) on conflict ("number") do
 update set processed=$2 returning processed`
 
-  upsertWalletQuery = `insert into wallet(address) values ($1)
-on conflict (address) do update set address=$1 returning address`
-
   findWalletQuery = "select address from wallet where address=$1"
 
   walletsInPartitionQuery = `select address from wallet where address >= $1 and address < $2`
@@ -66,9 +63,9 @@ func (g *CockroachDbGraph) bulkInsertBlocks(blockNumbers []int) error {
 	valueStrings := make([]string, 0, len(blockNumbers))
 	valueArgs := make([]interface{}, 0, numArgs * len(blockNumbers))
 	for i,blockNumber := range blockNumbers {
-	  valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*numArgs+1, i*numArgs+2))
-	  valueArgs = append(valueArgs, blockNumber)
-	  valueArgs = append(valueArgs, false)
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*numArgs+1, i*numArgs+2))
+		valueArgs = append(valueArgs, blockNumber)
+		valueArgs = append(valueArgs, false)
 	}
 	stmt := fmt.Sprintf(`INSERT INTO block("number", processed) VALUES %s`, strings.Join(valueStrings, ","))
 	_, err := g.db.Exec(stmt, valueArgs...)
@@ -184,16 +181,16 @@ func (g *CockroachDbGraph) InsertTxs(txs []*graph.Tx) error {
 	valueStrings := make([]string, 0, len(txs))
 	valueArgs := make([]interface{}, 0, numArgs * len(txs))
 	for i,tx := range txs {
-	  valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)", i*numArgs+1, i*numArgs+2, i*numArgs+3, i*numArgs+4, i*numArgs+5, i*numArgs+6, i*numArgs+7, i*numArgs+8, i*numArgs+9))
-	  valueArgs = append(valueArgs, tx.Hash)
-	  valueArgs = append(valueArgs, tx.Status)
-	  valueArgs = append(valueArgs, tx.Block.String())
-	  valueArgs = append(valueArgs, tx.Timestamp.UTC())
-	  valueArgs = append(valueArgs, tx.From)
-	  valueArgs = append(valueArgs, tx.To)
-	  valueArgs = append(valueArgs, tx.Value.String())
-	  valueArgs = append(valueArgs, tx.TransactionFee.String())
-	  valueArgs = append(valueArgs, tx.Data)
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)", i*numArgs+1, i*numArgs+2, i*numArgs+3, i*numArgs+4, i*numArgs+5, i*numArgs+6, i*numArgs+7, i*numArgs+8, i*numArgs+9))
+		valueArgs = append(valueArgs, tx.Hash)
+		valueArgs = append(valueArgs, tx.Status)
+		valueArgs = append(valueArgs, tx.Block.String())
+		valueArgs = append(valueArgs, tx.Timestamp.UTC())
+		valueArgs = append(valueArgs, tx.From)
+		valueArgs = append(valueArgs, tx.To)
+		valueArgs = append(valueArgs, tx.Value.String())
+		valueArgs = append(valueArgs, tx.TransactionFee.String())
+		valueArgs = append(valueArgs, tx.Data)
 	}
 	stmt := fmt.Sprintf(`INSERT INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
 	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
@@ -206,13 +203,20 @@ func (g *CockroachDbGraph) InsertTxs(txs []*graph.Tx) error {
 }
 
 // Upserts a wallet.
-func (g *CockroachDbGraph) UpsertWallet(wallet *graph.Wallet) error {
-	if len(wallet.Address) != 40 {
-		return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
+func (g *CockroachDbGraph) UpsertWallets(wallets []*graph.Wallet) error {
+	numArgs := 1 // Number of columns in the wallet table.
+	valueStrings := make([]string, 0, len(wallets))
+	valueArgs := make([]interface{}, 0, numArgs * len(wallets))
+	for i,wallet := range wallets {
+		if len(wallet.Address) != 40 {
+			return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
+		}
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d)", i*numArgs+1))
+		valueArgs = append(valueArgs, wallet.Address)
 	}
-	row := g.db.QueryRow(upsertWalletQuery, wallet.Address)
-	if err := row.Scan(&wallet.Address); err != nil {
-		return xerrors.Errorf("upsert wallet: %w", err)
+	stmt := fmt.Sprintf(`INSERT INTO wallet(address) VALUES %s`, strings.Join(valueStrings, ","))
+	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
+		return xerrors.Errorf("insert wallets: %w", err)
 	}
 	return nil
 }

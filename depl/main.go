@@ -116,7 +116,7 @@ type txGraph interface {
 	Blocks() (graph.BlockIterator, error)
 	InsertTxs(txs []*graph.Tx) error
 	UpsertBlock(block *graph.Block) error
-	UpsertWallet(wallet *graph.Wallet) error
+	UpsertWallets(wallets []*graph.Wallet) error
 	
 }
 

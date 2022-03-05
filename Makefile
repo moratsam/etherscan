@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env deps dockerize dockerize-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith migrate-check-deps mocks proto push run-cdb-migrations test 
+.PHONY: check-cdb-env cockroachdb deps dockerize dockerize-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith migrate-check-deps mocks proto push run-cdb-migrations test 
 
 define dsn_missing_error
 
@@ -30,6 +30,11 @@ check-cdb-env:
 ifndef CDB_DSN
 	$(error ${dsn_missing_error})
 endif
+
+cockroachdb:
+	@cockroach start-single-node --insecure --advertise-addr 127.0.0.1:26257 &
+	@cockroach sql --insecure -e 'create database etherscan;'
+
 
 deps: 
 	@if [ "$(go mod help | echo 'no-mod')" = "no-mod" ] || [ "${GO111MODULE}" = "off" ]; then \

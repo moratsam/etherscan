@@ -141,7 +141,6 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	fromAddr := s.createAddressFromInt(c, 1);
 	toAddr := s.createAddressFromInt(c, 2);
 	initValue := big.NewInt(3)
-	changedValue := big.NewInt(333)
 
 	tx := &graph.Tx{
 		Hash:					testHash,
@@ -160,9 +159,10 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	c.Assert(xerrors.Is(err, graph.ErrUnknownAddress), gc.Equals, true)
 	
 	// Insert wallets
-	err = s.g.UpsertWallet(&graph.Wallet{Address: fromAddr})
-	c.Assert(err, gc.IsNil)
-	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr})
+	wallets := make([]*graph.Wallet, 2)
+	wallets[0] = &graph.Wallet{Address: fromAddr}
+	wallets[1] = &graph.Wallet{Address: toAddr}
+	err = s.g.UpsertWallets(wallets)
 	c.Assert(err, gc.IsNil)
 
 	//find the inserted wallets
@@ -177,12 +177,6 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	// Insert transaction
 	err = s.g.InsertTxs([]*graph.Tx{tx})
 	c.Assert(err, gc.IsNil)
-
-	// Change a field and attempt to re-insert the tx, the change it back to state.
-	tx.Value = changedValue
-	err = s.g.InsertTxs([]*graph.Tx{tx})
-	c.Assert(err, gc.IsNil)
-	tx.Value = initValue
 
 	// Retrieve it from WalletTxs iterators of both wallets
 	itFrom, err := s.g.WalletTxs(fromAddr)
@@ -224,14 +218,14 @@ func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
 	testAddr := s.createAddressFromInt(c, 123093432)
 
 	// Try to create a wallet with an invalid address
-	err := s.g.UpsertWallet(&graph.Wallet{Address: "abc"})
+	err := s.g.UpsertWallets([]*graph.Wallet{&graph.Wallet{Address: "abc"}})
 	c.Assert(xerrors.Is(err, graph.ErrInvalidAddress), gc.Equals, true)
 
 	// Create a new wallet
 	original := &graph.Wallet{
 		Address: testAddr,
 	}
-	err = s.g.UpsertWallet(original)
+	err = s.g.UpsertWallets([]*graph.Wallet{original})
 	c.Assert(err, gc.IsNil)
 	
 	// Retrieve original wallet and verify it's equal.
@@ -246,7 +240,7 @@ func (s *SuiteBase) TestFindWallet(c *gc.C) {
 	original := &graph.Wallet{
 		Address: testAddr,
 	}
-	err := s.g.UpsertWallet(original)
+	err := s.g.UpsertWallets([]*graph.Wallet{original})
 	c.Assert(err, gc.IsNil)
 
 	// Retrieve wallet
@@ -270,9 +264,10 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 	)
 
 	// Insert two wallets
-	err := s.g.UpsertWallet(&graph.Wallet{Address: fromAddr})
-	c.Assert(err, gc.IsNil)
-	err = s.g.UpsertWallet(&graph.Wallet{Address: toAddr})
+	wallets := make([]*graph.Wallet, 2)
+	wallets[0] = &graph.Wallet{Address: fromAddr}
+	wallets[1] = &graph.Wallet{Address: toAddr}
+	err := s.g.UpsertWallets(wallets)
 	c.Assert(err, gc.IsNil)
 
 	// Insert transactions
@@ -345,7 +340,7 @@ func (s *SuiteBase) TestConcurrentWalletIterators(c *gc.C) {
 
 	for i:=0; i<numTxs; i++ {
 		wallet := &graph.Wallet{Address: s.createAddressFromInt(c, i)}
-		c.Assert(s.g.UpsertWallet(wallet), gc.IsNil)
+		c.Assert(s.g.UpsertWallets([]*graph.Wallet{wallet}), gc.IsNil)
 	}
 
 	wg.Add(numIterators)
@@ -419,7 +414,7 @@ func (s *SuiteBase) TestPartitionedWalletIterators(c *gc.C) {
 	numWallets	 := 100
 	for i:=0; i<numWallets; i++ {
 		wallet := &graph.Wallet{Address: s.createAddressFromInt(c, i)}
-		c.Assert(s.g.UpsertWallet(wallet), gc.IsNil)
+		c.Assert(s.g.UpsertWallets([]*graph.Wallet{wallet}), gc.IsNil)
 	}
 
 	// Check with both odd and even partition counts to check for rounding-related bugs.

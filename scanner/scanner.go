@@ -23,8 +23,8 @@ type Graph interface {
 	// Inserts new transactions.
 	InsertTxs(txs []*graph.Tx) error
 
-	// Creates a new wallet or updates an existing one.
-	UpsertWallet(wallet *graph.Wallet) error
+	// Creates new wallets or updates existing ones.
+	UpsertWallets(wallets []*graph.Wallet) error
 
 	// Creates a new block or updates an existing one.
 	UpsertBlock(block *graph.Block) error

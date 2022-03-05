@@ -116,46 +116,16 @@ func (mr *MockGraphAPIMockRecorder) UpsertBlock(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertBlock", reflect.TypeOf((*MockGraphAPI)(nil).UpsertBlock), arg0)
 }
 
-// UpsertWallet mocks base method.
-func (m *MockGraphAPI) UpsertWallet(arg0 *graph.Wallet) error {
+// UpsertWallets mocks base method.
+func (m *MockGraphAPI) UpsertWallets(arg0 []*graph.Wallet) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpsertWallet", arg0)
+	ret := m.ctrl.Call(m, "UpsertWallets", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpsertWallet indicates an expected call of UpsertWallet.
-func (mr *MockGraphAPIMockRecorder) UpsertWallet(arg0 interface{}) *gomock.Call {
+// UpsertWallets indicates an expected call of UpsertWallets.
+func (mr *MockGraphAPIMockRecorder) UpsertWallets(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertWallet", reflect.TypeOf((*MockGraphAPI)(nil).UpsertWallet), arg0)
-}
-
-// WalletTxs mocks base method.
-func (m *MockGraphAPI) WalletTxs(arg0 string) (graph.TxIterator, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WalletTxs", arg0)
-	ret0, _ := ret[0].(graph.TxIterator)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WalletTxs indicates an expected call of WalletTxs.
-func (mr *MockGraphAPIMockRecorder) WalletTxs(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WalletTxs", reflect.TypeOf((*MockGraphAPI)(nil).WalletTxs), arg0)
-}
-
-// Wallets mocks base method.
-func (m *MockGraphAPI) Wallets(arg0, arg1 string) (graph.WalletIterator, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Wallets", arg0, arg1)
-	ret0, _ := ret[0].(graph.WalletIterator)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Wallets indicates an expected call of Wallets.
-func (mr *MockGraphAPIMockRecorder) Wallets(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Wallets", reflect.TypeOf((*MockGraphAPI)(nil).Wallets), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertWallets", reflect.TypeOf((*MockGraphAPI)(nil).UpsertWallets), arg0)
 }

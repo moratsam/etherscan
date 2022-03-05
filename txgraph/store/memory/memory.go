@@ -112,6 +112,7 @@ func (g *InMemoryGraph) Blocks() (graph.BlockIterator, error) {
 // Upserts a Block.
 // Once the Processed field of a block equals true, it cannot be changed to false.
 func (g *InMemoryGraph) UpsertBlock(block *graph.Block) error {
+	fmt.Println("upserting block: ", block.Number)
 	g.mu.Lock()
 	defer g.mu.Unlock()
 

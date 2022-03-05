@@ -43,7 +43,7 @@ func (i *blockIterator) Error() error {
 func (i *blockIterator) refresh() bool{
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	for ; len(i.blocks) < 1; {
+	for ; len(i.blocks) < 2; {
 		blocks, err := i.g.getUnprocessedBlocks()
 		if err != nil {
 			i.lastErr = err

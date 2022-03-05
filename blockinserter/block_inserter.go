@@ -14,29 +14,33 @@ type Graph interface {
 	UpsertBlock(block *graph.Block) error
 }
 
-//ETHClient is implemented by objects that can fetch an eth block by its number.
+// ETHClient is implemented by objects that can fetch an eth block by its number.
 type ETHClient interface {
 	SubscribeNewHead(ctx context.Context) (<-chan *types.Header, ethereum.Subscription, error)
 }
 
-type BlockInserter interface {
-	// Start inserting blocks into the tx graph.
-	Start(ctx context.Context) error	
+// Config encapsulates the configuration options for creating a new BlockInserter.
+type Config struct {
+	// An ETHClient instance for subscribing to new head.
+	ETHClient ETHClient
+
+	// A Graph instance for inserting new blocks.
+	Graph Graph
 }
 
-type blockInserter struct {
+type BlockInserter struct {
 	client ETHClient
 	graph Graph
 }
 
-func NewBlockInserter(client ETHClient, graph Graph) BlockInserter {
-	return &blockInserter{
-		client: client,
-		graph: graph,
+func NewBlockInserter(cfg Config) *BlockInserter {
+	return &BlockInserter{
+		client: cfg.ETHClient,
+		graph: cfg.Graph,
 	}
 }
 
-func (i *blockInserter) Start(ctx context.Context) error {
+func (i *BlockInserter) Start(ctx context.Context) error {
 	headerCh, sub, err := i.client.SubscribeNewHead(ctx)
 	if err != nil {
 		return err

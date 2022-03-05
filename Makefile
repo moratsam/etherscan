@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env deps ensure-proto-deps lint lint-check-deps migrate-check-deps mocks proto run-cdb-migrations test 
+.PHONY: check-cdb-env deps dockerize dockerize-and-push ensure-proto-deps migrate-check-deps mocks proto push run-cdb-migrations test 
 
 define dsn_missing_error
 
@@ -9,9 +9,21 @@ a database called 'etherscan' you can define the envvar by
 running:
 
 export CDB_DSN='postgresql://root@localhost:26257/etherscan?sslmode=disable'
-
 endef
+
 export dsn_missing_error
+
+IMAGE = etherscan-monolith
+SHA = $(shell git rev-parse --short HEAD)
+
+ifeq ($(origin PRIVATE_REGISTRY),undefined)
+PRIVATE_REGISTRY := $(shell minikube ip 2>/dev/null):5000
+endif
+
+ifneq ($(PRIVATE_REGISTRY),)
+	PREFIX:=${PRIVATE_REGISTRY}/
+endif
+
 
 check-cdb-env:
 ifndef CDB_DSN
@@ -25,6 +37,16 @@ deps:
 		dep ensure;\
 	fi
 
+
+dockerize:
+	@echo "[docker build] building ${IMAGE} (tags: ${PREFIX}${IMAGE}:latest, ${PREFIX}${IMAGE}:${SHA})"
+	@docker build --file ./depl/Dockerfile \
+		--tag ${PREFIX}${IMAGE}:latest \
+		--tag ${PREFIX}${IMAGE}:${SHA} \
+		. 2>&1 | sed -e "s/^/ | /g"
+
+dockerize-and-push: dockerize push
+
 ensure-proto-deps:
 	@echo "[go get] ensuring protoc packages are available"
 	@go get github.com/gogo/protobuf/protoc-gen-gofast
@@ -32,22 +54,6 @@ ensure-proto-deps:
 	@go get github.com/gogo/protobuf/jsonpb
 	@go get github.com/gogo/protobuf/protoc-gen-gogo
 	@go get github.com/gogo/protobuf/gogoproto
-
-lint: lint-check-deps
-	@echo "[golangci-lint] linting sources"
-	@golangci-lint run \
-		-E misspell \
-		-E golint \
-		-E gofmt \
-		-E unconvert \
-		--exclude-use-default=false \
-		./...
-
-lint-check-deps:
-	@if [ -z `which golangci-lint` ]; then \
-		echo "[go get] installing golangci-lint";\
-		GO111MODULE=on go get -u github.com/golangci/golangci-lint/cmd/golangci-lint;\
-	fi
 
 migrate-check-deps:
 	@if [ -z `which migrate` ]; then \
@@ -64,6 +70,8 @@ migrate-check-deps:
 mocks:
 	mockgen -package mocks -destination scanner/mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
 	mockgen -package mocks -destination txgraphapi/mocks/mock.go github.com/moratsam/etherscan/txgraphapi/proto TxGraphClient,TxGraph_BlocksClient,TxGraph_WalletTxsClient,TxGraph_WalletsClient
+	mockgen -package mocks -destination depl/service/scanner/mocks/mocks.go github.com/moratsam/etherscan/depl/service/scanner ETHClient,GraphAPI
+	mockgen -package mocks -destination depl/service/scanner/mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph BlockIterator
 
 proto: ensure-proto-deps
 	@echo "[protoc] generating protos for API"
@@ -71,6 +79,13 @@ proto: ensure-proto-deps
 	Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,\
 	plugins=grpc:. \
 	txgraphapi/proto/api.proto
+
+
+push:
+	@echo "[docker push] pushing ${PREFIX}${IMAGE}:latest"
+	@docker push ${PREFIX}${IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker push] pushing ${PREFIX}${IMAGE}:${SHA}"
+	@docker push ${PREFIX}${IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
 
 
 run-cdb-migrations: migrate-check-deps check-cdb-env

@@ -37,7 +37,7 @@ spec:
         imagePullPolicy: Always
         image: localhost:5000/etherscan-monolith:latest
         args:
-          - "-scanner-num-workers=64"
+          - "-scanner-num-workers=10"
           - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
 
         ports:

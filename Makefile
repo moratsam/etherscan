@@ -101,6 +101,9 @@ push:
 run-cdb-migrations: migrate-check-deps check-cdb-env
 	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
 
+k8s-cdb-connect:
+	@kubectl -n etherscan-data run cdb-connector -it --image=cockroachdb/cockroach:v21.2.6 --rm --restart=Never -- sql --insecure --host=cdb-cockroachdb-public
+
 
 test: 
 	@echo "[go test] running tests and collecting coverage metrics"

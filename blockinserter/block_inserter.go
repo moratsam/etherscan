@@ -2,6 +2,7 @@ package blockinserter
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -55,6 +56,7 @@ func (i *BlockInserter) Start(ctx context.Context) error {
 			case header := <-headerCh:
 				err := i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
 				if err != nil {
+					fmt.Println("error lock inserter insert block: ", err)
 					panic("block inserter insert block")
 				}
 			}

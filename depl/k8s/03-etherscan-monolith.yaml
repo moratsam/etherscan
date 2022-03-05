@@ -8,9 +8,6 @@ metadata:
 spec:
   clusterIP: None
   ports:
-  - port: 80
-    targetPort: 8080
-    name: web
   selector:
     app: etherscan-monolith-instance
 ---
@@ -39,12 +36,6 @@ spec:
         args:
           - "-scanner-num-workers=10"
           - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
-
-        ports:
-        - containerPort: 8080
-          name: frontend
         resources:
-          limits:
-            cpu: "1"
           requests:
-            cpu: 100m
+            cpu: "1"

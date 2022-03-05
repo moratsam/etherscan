@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env deps dockerize dockerize-and-push ensure-proto-deps migrate-check-deps mocks proto push run-cdb-migrations test 
+.PHONY: check-cdb-env deps dockerize dockerize-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith migrate-check-deps mocks proto push run-cdb-migrations test 
 
 define dsn_missing_error
 
@@ -61,6 +61,21 @@ ensure-proto-deps:
 	@go get github.com/gogo/protobuf/protoc-gen-gogo
 	@go get github.com/gogo/protobuf/gogoproto
 
+k8s-cdb-connect:
+	@kubectl run -it --rm cockroach-client --image=cockroachdb/cockroach --restart=Never -- sql --insecure --host=cdb-cockroachdb-public.etherscan-data
+
+k8s-delete-monolith:
+	@kubectl delete -f depl/k8s/03-etherscan-monolith.yaml
+	@kubectl delete -f depl/k8s/02-cdb-schema.yaml
+	@helm -n=etherscan-data uninstall cdb
+	@kubectl delete -f depl/k8s/01-namespaces.yaml
+
+k8s-deploy-monolith:
+	@kubectl apply -f depl/k8s/01-namespaces.yaml
+	@helm install cdb --namespace=etherscan-data --values depl/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
+	@kubectl apply -f depl/k8s/02-cdb-schema.yaml
+	@kubectl apply -f depl/k8s/03-etherscan-monolith.yaml
+
 migrate-check-deps:
 	@if [ -z `which migrate` ]; then \
 		echo "[go get] installing golang-migrate cmd with cockroachdb support";\
@@ -100,10 +115,6 @@ push:
 
 run-cdb-migrations: migrate-check-deps check-cdb-env
 	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
-
-k8s-cdb-connect:
-	@kubectl -n etherscan-data run cdb-connector -it --image=cockroachdb/cockroach:v21.2.6 --rm --restart=Never -- sql --insecure --host=cdb-cockroachdb-public
-
 
 test: 
 	@echo "[go test] running tests and collecting coverage metrics"

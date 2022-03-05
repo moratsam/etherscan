@@ -1,0 +1,50 @@
+# A headless service which allows pods to discover the number of pods in the 
+# stateful set by performing SRV queries.
+apiVersion: v1
+kind: Service
+metadata:
+  name: etherscan-headless
+  namespace: etherscan
+spec:
+  clusterIP: None
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: web
+  selector:
+    app: etherscan-monolith-instance
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etherscan-monolith-instance
+  namespace: etherscan
+  labels:
+    app: etherscan-monolith-instance
+spec:
+  serviceName: etherscan-service
+  selector:
+    matchLabels:
+      app: etherscan-monolith-instance
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: etherscan-monolith-instance
+    spec:
+      containers:
+      - name: etherscan-monolith
+        imagePullPolicy: Always
+        image: localhost:5000/etherscan-monolith:latest
+        args:
+          - "-scanner-num-workers=64"
+          - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
+
+        ports:
+        - containerPort: 8080
+          name: frontend
+        resources:
+          limits:
+            cpu: "1"
+          requests:
+            cpu: 100m

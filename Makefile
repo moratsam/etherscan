@@ -13,7 +13,8 @@ endef
 
 export dsn_missing_error
 
-IMAGE = etherscan-monolith
+CDB_IMAGE = cdb-schema
+MONOLITH_IMAGE = etherscan-monolith
 SHA = $(shell git rev-parse --short HEAD)
 
 ifeq ($(origin PRIVATE_REGISTRY),undefined)
@@ -39,10 +40,15 @@ deps:
 
 
 dockerize:
-	@echo "[docker build] building ${IMAGE} (tags: ${PREFIX}${IMAGE}:latest, ${PREFIX}${IMAGE}:${SHA})"
+	@echo "[docker build] building ${MONOLITH_IMAGE} (tags: ${PREFIX}${MONOLITH_IMAGE}:latest, ${PREFIX}${MONOLITH_IMAGE}:${SHA})"
 	@docker build --file ./depl/Dockerfile \
-		--tag ${PREFIX}${IMAGE}:latest \
-		--tag ${PREFIX}${IMAGE}:${SHA} \
+		--tag ${PREFIX}${MONOLITH_IMAGE}:latest \
+		--tag ${PREFIX}${MONOLITH_IMAGE}:${SHA} \
+		. 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker build] building ${CDB_IMAGE} (tags: ${PREFIX}${CDB_IMAGE}:latest, ${PREFIX}${CDB_IMAGE}:${SHA})"
+	@docker build --file ./depl/cdb-schema/Dockerfile \
+		--tag ${PREFIX}${CDB_IMAGE}:latest \
+		--tag ${PREFIX}${CDB_IMAGE}:${SHA} \
 		. 2>&1 | sed -e "s/^/ | /g"
 
 dockerize-and-push: dockerize push
@@ -82,10 +88,14 @@ proto: ensure-proto-deps
 
 
 push:
-	@echo "[docker push] pushing ${PREFIX}${IMAGE}:latest"
-	@docker push ${PREFIX}${IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
-	@echo "[docker push] pushing ${PREFIX}${IMAGE}:${SHA}"
-	@docker push ${PREFIX}${IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker push] pushing ${PREFIX}${MONOLITH_IMAGE}:latest"
+	@docker push ${PREFIX}${MONOLITH_IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker push] pushing ${PREFIX}${MONOLITH_IMAGE}:${SHA}"
+	@docker push ${PREFIX}${MONOLITH_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:latest"
+	@docker push ${PREFIX}${CDB_IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:${SHA}"
+	@docker push ${PREFIX}${CDB_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
 
 
 run-cdb-migrations: migrate-check-deps check-cdb-env

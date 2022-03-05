@@ -29,8 +29,8 @@ func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.P
 	// Insert transactions in batches.
 	batchSize := 20
 	var batchTx []*graph.Tx
-	var batchWalletMap map[string]bool
 	var batchWallet []*graph.Wallet
+	batchWalletMap := make(map[string]bool)
 	for _, tx := range payload.Txs {
 		// First insert From and To wallet addresses to the batch of wallet addresses.
 		from := tp.parseFrom(tx)

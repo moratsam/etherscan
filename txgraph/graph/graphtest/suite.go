@@ -267,7 +267,8 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 	wallets := make([]*graph.Wallet, 2)
 	wallets[0] = &graph.Wallet{Address: fromAddr}
 	wallets[1] = &graph.Wallet{Address: toAddr}
-	err := s.g.UpsertWallets(wallets)
+	err := s.g.UpsertWallets(wallets[0:1])
+	err = s.g.UpsertWallets(wallets)
 	c.Assert(err, gc.IsNil)
 
 	// Insert transactions

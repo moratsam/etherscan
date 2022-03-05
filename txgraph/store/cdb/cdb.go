@@ -214,7 +214,7 @@ func (g *CockroachDbGraph) UpsertWallets(wallets []*graph.Wallet) error {
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d)", i*numArgs+1))
 		valueArgs = append(valueArgs, wallet.Address)
 	}
-	stmt := fmt.Sprintf(`INSERT INTO wallet(address) VALUES %s`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`INSERT INTO wallet(address) VALUES %s ON CONFLICT (address) DO NOTHING`, strings.Join(valueStrings, ","))
 	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
 		return xerrors.Errorf("insert wallets: %w", err)
 	}

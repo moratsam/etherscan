@@ -23,7 +23,7 @@ func (s *SuiteBase) SetGraph(g graph.Graph) {
 }
 
 func (s *SuiteBase) TestRefreshOfBlockIterator(c *gc.C) {
-	testBlock := &graph.Block{Number: 1}
+	testBlock := &graph.Block{Number: 2}
 
 	blockIterator, err := s.g.Blocks()
 	c.Assert(err, gc.IsNil)

@@ -32,7 +32,7 @@ ifndef CDB_DSN
 endif
 
 cockroachdb:
-	@cockroach start-single-node --insecure --advertise-addr 127.0.0.1:26257 &
+	@cockroach start-single-node --insecure --advertise-addr 127.0.0.1:26257
 	@cockroach sql --insecure -e 'create database etherscan;'
 
 

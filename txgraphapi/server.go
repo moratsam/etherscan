@@ -59,7 +59,7 @@ func (s *TxGraphServer) UpsertBlock(_ context.Context, req *proto.Block) (*empty
 	return new(empty.Empty), err
 }
 
-func (s *TxGraphServer) InsertTxs(_ context.Context, req *proto.Txs) (*empty.Empty, error) {
+func (s *TxGraphServer) InsertTxs(_ context.Context, req *proto.TxBatch) (*empty.Empty, error) {
 	txs := make([]*graph.Tx, len(req.Txs))
 	for i, reqTx := range req.Txs {
 		// Make necessary conversions from proto formats.
@@ -103,11 +103,15 @@ func (s *TxGraphServer) InsertTxs(_ context.Context, req *proto.Txs) (*empty.Emp
 	return new(empty.Empty), err
 }
 
-func (s *TxGraphServer) UpsertWallet(_ context.Context, req *proto.Wallet) (*empty.Empty, error) {
-	wallet := &graph.Wallet{
-		Address: req.Address,
+func (s *TxGraphServer) UpsertWallets(_ context.Context, req *proto.WalletBatch) (*empty.Empty, error) {
+	wallets := make([]*graph.Wallet, len(req.Wallets))
+	for i, reqWallet := range req.Wallets{
+		wallets[i] = &graph.Wallet{
+			Address: reqWallet.Address,
+		}
 	}
-	err := s.g.UpsertWallet(wallet)
+
+	err := s.g.UpsertWallets(wallets)
 	return new(empty.Empty), err
 }
 

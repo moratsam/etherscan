@@ -70,16 +70,20 @@ func (c *TxGraphClient) InsertTxs(txs []*graph.Tx) error {
 			Data:					tx.Data,
 		}
 	}
-	req := &proto.Txs{Txs: reqTxs}
+	req := &proto.TxBatch{Txs: reqTxs}
 	_, err := c.cli.InsertTxs(c.ctx, req)
 	return err
 }
 
-func (c *TxGraphClient) UpsertWallet(wallet *graph.Wallet) error {
-	req := &proto.Wallet{
-		Address: wallet.Address,
+func (c *TxGraphClient) UpsertWallets(wallets []*graph.Wallet) error {
+	reqWallets := make([]*proto.Wallet, len(wallets))
+	for i,wallet := range wallets {
+		reqWallets[i] = &proto.Wallet{
+			Address: wallet.Address,
+		}
 	}
-	_, err := c.cli.UpsertWallet(c.ctx, req)
+	req := &proto.WalletBatch{Wallets: reqWallets}
+	_, err := c.cli.UpsertWallets(c.ctx, req)
 	return err
 	
 }

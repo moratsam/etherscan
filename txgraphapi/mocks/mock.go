@@ -59,7 +59,7 @@ func (mr *MockTxGraphClientMockRecorder) Blocks(arg0, arg1 interface{}, arg2 ...
 }
 
 // InsertTxs mocks base method.
-func (m *MockTxGraphClient) InsertTxs(arg0 context.Context, arg1 *proto.Txs, arg2 ...grpc.CallOption) (*emptypb.Empty, error) {
+func (m *MockTxGraphClient) InsertTxs(arg0 context.Context, arg1 *proto.TxBatch, arg2 ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -98,24 +98,24 @@ func (mr *MockTxGraphClientMockRecorder) UpsertBlock(arg0, arg1 interface{}, arg
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertBlock", reflect.TypeOf((*MockTxGraphClient)(nil).UpsertBlock), varargs...)
 }
 
-// UpsertWallet mocks base method.
-func (m *MockTxGraphClient) UpsertWallet(arg0 context.Context, arg1 *proto.Wallet, arg2 ...grpc.CallOption) (*emptypb.Empty, error) {
+// UpsertWallets mocks base method.
+func (m *MockTxGraphClient) UpsertWallets(arg0 context.Context, arg1 *proto.WalletBatch, arg2 ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "UpsertWallet", varargs...)
+	ret := m.ctrl.Call(m, "UpsertWallets", varargs...)
 	ret0, _ := ret[0].(*emptypb.Empty)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// UpsertWallet indicates an expected call of UpsertWallet.
-func (mr *MockTxGraphClientMockRecorder) UpsertWallet(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+// UpsertWallets indicates an expected call of UpsertWallets.
+func (mr *MockTxGraphClientMockRecorder) UpsertWallets(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertWallet", reflect.TypeOf((*MockTxGraphClient)(nil).UpsertWallet), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertWallets", reflect.TypeOf((*MockTxGraphClient)(nil).UpsertWallets), varargs...)
 }
 
 // WalletTxs mocks base method.

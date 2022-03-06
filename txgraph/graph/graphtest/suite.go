@@ -37,8 +37,13 @@ func (s *SuiteBase) TestRefreshOfBlockIterator(c *gc.C) {
 	// Because there are no unprocessed blocks when the iterator was created,
 	// this will trigger the blockIterator.refresh() function.
 	c.Assert(blockIterator.Next(), gc.Equals, true, gc.Commentf("block iterator returned false"))
-	receivedBlock := blockIterator.Block()
-	c.Assert(receivedBlock, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
+	receivedBlock1 := blockIterator.Block()
+	receivedBlock2 := blockIterator.Block()
+	if receivedBlock1.Number == 2 {
+		c.Assert(receivedBlock1, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
+	} else {
+		c.Assert(receivedBlock2, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
+	}
 }
 
 func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {

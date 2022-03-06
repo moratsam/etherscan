@@ -59,7 +59,9 @@ dockerize:
 		--tag ${PREFIX}${CDB_IMAGE}:${SHA} \
 		. 2>&1 | sed -e "s/^/ | /g"
 
-dockerize-and-push: eval-minikube dockerize
+dockerize-and-push: dockerize push
+	@minikube image load 192.168.39.133:5000/cdb-schema:latest
+	@minikube image load 192.168.39.133:5000/etherscan-monolith:latest
 
 ensure-proto-deps:
 	@echo "[go get] ensuring protoc packages are available"
@@ -68,9 +70,6 @@ ensure-proto-deps:
 	@go get github.com/gogo/protobuf/jsonpb
 	@go get github.com/gogo/protobuf/protoc-gen-gogo
 	@go get github.com/gogo/protobuf/gogoproto
-
-eval-minikube:
-	@eval $(minikube docker-env)
 
 k8s-cdb-connect:
 	@kubectl run -it --rm cockroach-client --image=cockroachdb/cockroach --restart=Never -- sql --insecure --host=cdb-cockroachdb-public.etherscan-data

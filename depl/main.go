@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
@@ -26,7 +29,15 @@ var (
 	appSha	= "populated-later"
 )
 
+func exposeProfile() {
+	go func() {
+	log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+}
+
 func main() {
+	exposeProfile()
+
 	host, _ := os.Hostname()
 	rootLogger := logrus.New()
 	logger := rootLogger.WithFields(logrus.Fields{

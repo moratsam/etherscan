@@ -173,13 +173,11 @@ func (g *CockroachDbGraph) UpsertBlock(block *graph.Block) error {
 	return nil
 }
 
-
-// InsertTxs inserts new transactions.
-// Not the nicest code, constructing a raw bulk insert SQL statement.
-func (g *CockroachDbGraph) InsertTxs(txs []*graph.Tx) error {
+func (g *CockroachDbGraph) bulkInsertTxs(txs []*graph.Tx) error {
 	numArgs := 9 // Number of columns in the tx table.
-	valueStrings := make([]string, 0, len(txs))
 	valueArgs := make([]interface{}, 0, numArgs * len(txs))
+	valueStrings := make([]string, 0, len(txs))
+
 	for i,tx := range txs {
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)", i*numArgs+1, i*numArgs+2, i*numArgs+3, i*numArgs+4, i*numArgs+5, i*numArgs+6, i*numArgs+7, i*numArgs+8, i*numArgs+9))
 		valueArgs = append(valueArgs, tx.Hash)
@@ -202,21 +200,54 @@ func (g *CockroachDbGraph) InsertTxs(txs []*graph.Tx) error {
 	return nil
 }
 
+// InsertTxs inserts new transactions.
+// Not the nicest code, constructing a raw bulk insert SQL statement.
+func (g *CockroachDbGraph) InsertTxs(txs []*graph.Tx) error {
+	// Insert transactions in batches.
+	batchSize := 25
+	var i int
+	for i=0; i+batchSize<len(txs); i+=batchSize {
+		if err := g.bulkInsertTxs(txs[i:i+batchSize]); err != nil {
+			return err
+		}
+	}
+	if i < len(txs) {
+		if err := g.bulkInsertTxs(txs[i:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Upserts a wallet.
 func (g *CockroachDbGraph) UpsertWallets(wallets []*graph.Wallet) error {
 	numArgs := 1 // Number of columns in the wallet table.
-	valueStrings := make([]string, 0, len(wallets))
 	valueArgs := make([]interface{}, 0, numArgs * len(wallets))
+	valueStrings := make([]string, 0, len(wallets))
+
+	// Upsert wallets in batches.
+	batchSize := 500
 	for i,wallet := range wallets {
 		if len(wallet.Address) != 40 {
 			return xerrors.Errorf("upsert wallet: %w", graph.ErrInvalidAddress)
 		}
-		valueStrings = append(valueStrings, fmt.Sprintf("($%d)", i*numArgs+1))
 		valueArgs = append(valueArgs, wallet.Address)
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d)", i*numArgs+1))
+
+		if len(valueStrings) == batchSize {
+			stmt := fmt.Sprintf(`INSERT INTO wallet(address) VALUES %s ON CONFLICT (address) DO NOTHING`, strings.Join(valueStrings, ","))
+			if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
+				return xerrors.Errorf("insert wallets: %w", err)
+			}
+			valueArgs = valueArgs[:0]
+			valueStrings = valueStrings[:0]
+		}
 	}
-	stmt := fmt.Sprintf(`INSERT INTO wallet(address) VALUES %s ON CONFLICT (address) DO NOTHING`, strings.Join(valueStrings, ","))
-	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
-		return xerrors.Errorf("insert wallets: %w", err)
+	if len(valueStrings) > 0 {
+		stmt := fmt.Sprintf(`INSERT INTO wallet(address) VALUES %s ON CONFLICT (address) DO NOTHING`, strings.Join(valueStrings, ","))
+		if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
+			return xerrors.Errorf("insert wallets: %w", err)
+		}
 	}
 	return nil
 }

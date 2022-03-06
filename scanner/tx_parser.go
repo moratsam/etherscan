@@ -26,17 +26,14 @@ func newTxParser(txGraph Graph) *txParser {
 func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.Payload, error) {
 	payload := p.(*scannerPayload)
 	
-	// Insert transactions in batches.
-	batchSize := 20
-	var batchTx []*graph.Tx
-	var batchWallet []*graph.Wallet
-	batchWalletMap := make(map[string]bool)
+	var txs []*graph.Tx
+	walletsMap := make(map[string]bool)
 	for _, tx := range payload.Txs {
 		// First insert From and To wallet addresses to the batch of wallet addresses.
 		from := tp.parseFrom(tx)
 		to := tp.parseTo(tx)
-		batchWalletMap[from] = true
-		batchWalletMap[to] = true
+		walletsMap[from] = true
+		walletsMap[to] = true
 
 		//Create transaction and append it.
 		graphTx := &graph.Tx{
@@ -50,39 +47,21 @@ func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.P
 			TransactionFee:	tp.parseCost(tx),
 			Data: 				tx.Data(),
 		}
-		batchTx = append(batchTx, graphTx)
-
-		if len(batchTx) == batchSize {
-			// First upsert the From/To wallets.
-			for addr := range batchWalletMap {
-				wallet := &graph.Wallet{Address: addr}
-				batchWallet = append(batchWallet, wallet)
-			}
-			if err := tp.txGraph.UpsertWallets(batchWallet); err != nil {
-				return nil, err
-			}
-
-			// Then insert the transactions.
-			if err := tp.txGraph.InsertTxs(batchTx); err != nil {
-				return nil, err
-			}
-			batchTx = batchTx[:0]
-			batchWallet = batchWallet[:0]
-			for k := range batchWalletMap { delete(batchWalletMap, k) }
-		}
+		txs = append(txs, graphTx)
 	}
-	if len(batchTx) > 0 {
+	if len(txs) > 0 {
 		// First upsert the From/To wallets.
-		for addr := range batchWalletMap {
+		var wallets []*graph.Wallet
+		for addr := range walletsMap {
 			wallet := &graph.Wallet{Address: addr}
-			batchWallet = append(batchWallet, wallet)
+			wallets = append(wallets, wallet)
 		}
-		if err := tp.txGraph.UpsertWallets(batchWallet); err != nil {
+		if err := tp.txGraph.UpsertWallets(wallets); err != nil {
 			return nil, err
 		}
 
 		// Then insert the transactions.
-		if err := tp.txGraph.InsertTxs(batchTx); err != nil {
+		if err := tp.txGraph.InsertTxs(txs); err != nil {
 			return nil, err
 		}
 	}

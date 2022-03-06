@@ -32,7 +32,8 @@ ifndef CDB_DSN
 endif
 
 cockroachdb:
-	@cockroach start-single-node --insecure --advertise-addr 127.0.0.1:26257
+	@cockroach start-single-node  --store /usr/local/cockroach/cockroach-data/ --insecure --advertise-addr 127.0.0.1:26257 &
+	@sleep 3
 	@cockroach sql --insecure -e 'create database etherscan;'
 
 
@@ -71,9 +72,9 @@ k8s-cdb-connect:
 
 k8s-delete-monolith:
 	@kubectl delete -f depl/k8s/03-etherscan-monolith.yaml
-	@kubectl delete -f depl/k8s/02-cdb-schema.yaml
-	@helm -n=etherscan-data uninstall cdb
-	@kubectl delete -f depl/k8s/01-namespaces.yaml
+	#@kubectl delete -f depl/k8s/02-cdb-schema.yaml
+	#@helm -n=etherscan-data uninstall cdb
+	#@kubectl delete -f depl/k8s/01-namespaces.yaml
 
 k8s-deploy-monolith:
 	@kubectl apply -f depl/k8s/01-namespaces.yaml

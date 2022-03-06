@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -29,14 +28,11 @@ var (
 	appSha	= "populated-later"
 )
 
-func exposeProfile() {
-	go func() {
-	log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-}
-
 func main() {
-	exposeProfile()
+	// Expose pprof at localhost:6060/debug/pprof
+	go func() {
+		http.ListenAndServe(":6060", nil)
+	}()
 
 	host, _ := os.Hostname()
 	rootLogger := logrus.New()
@@ -143,10 +139,10 @@ func getTxGraph(txGraphURI string, logger *logrus.Entry) (txGraph, error) {
 
 	switch uri.Scheme{
 	case "in-memory":
-		logger.Info("using in-memory graph")
+		logger.Info("using in-memory grraph")
 		return memgraph.NewInMemoryGraph(), nil
 	case "postgresql":
-		logger.Info("using CDB graph")
+		logger.Info("using CDB grraph")
 		return cdbgraph.NewCockroachDBGraph(txGraphURI)
 	default:
 		return nil, xerrors.Errorf("unsupported tx graph URI scheme: %q", uri.Scheme)

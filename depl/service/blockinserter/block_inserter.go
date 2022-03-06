@@ -82,15 +82,15 @@ func (svc *Service) Name() string { return "block-inserter" }
 func (svc *Service) Run(ctx context.Context) error {
 	defer svc.cfg.Logger.Info("stopped service")
 
-	if err := svc.blockInserter.Start(ctx); err != nil {
-		return err
-	}
-
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
+			svc.cfg.Logger.Info("starting service block-inserter")
+			if err := svc.blockInserter.Start(ctx); err != nil {
+				return err
+			}
 		}
 	}
 }

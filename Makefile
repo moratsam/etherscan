@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env cockroachdb deps dockerize dockerize-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith migrate-check-deps mocks proto push run-cdb-migrations test 
+.PHONY: check-cdb-env cockroachdb deps docker-run dockerize dockerize-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-cdb-migrations test 
 
 define dsn_missing_error
 
@@ -44,6 +44,8 @@ deps:
 		dep ensure;\
 	fi
 
+docker-run:
+	@docker run -it --rm -p 6060:6060 192.168.39.133:5000/etherscan-monolith:latest
 
 dockerize:
 	@echo "[docker build] building ${MONOLITH_IMAGE} (tags: ${PREFIX}${MONOLITH_IMAGE}:latest, ${PREFIX}${MONOLITH_IMAGE}:${SHA})"
@@ -57,7 +59,7 @@ dockerize:
 		--tag ${PREFIX}${CDB_IMAGE}:${SHA} \
 		. 2>&1 | sed -e "s/^/ | /g"
 
-dockerize-and-push: dockerize push
+dockerize-and-push: eval-minikube dockerize
 
 ensure-proto-deps:
 	@echo "[go get] ensuring protoc packages are available"
@@ -66,6 +68,9 @@ ensure-proto-deps:
 	@go get github.com/gogo/protobuf/jsonpb
 	@go get github.com/gogo/protobuf/protoc-gen-gogo
 	@go get github.com/gogo/protobuf/gogoproto
+
+eval-minikube:
+	@eval $(minikube docker-env)
 
 k8s-cdb-connect:
 	@kubectl run -it --rm cockroach-client --image=cockroachdb/cockroach --restart=Never -- sql --insecure --host=cdb-cockroachdb-public.etherscan-data
@@ -77,10 +82,13 @@ k8s-delete-monolith:
 	#@kubectl delete -f depl/k8s/01-namespaces.yaml
 
 k8s-deploy-monolith:
-	@kubectl apply -f depl/k8s/01-namespaces.yaml
-	@helm install cdb --namespace=etherscan-data --values depl/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
-	@kubectl apply -f depl/k8s/02-cdb-schema.yaml
+	#@kubectl apply -f depl/k8s/01-namespaces.yaml
+	#@helm install cdb --namespace=etherscan-data --values depl/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
+	#@kubectl apply -f depl/k8s/02-cdb-schema.yaml
 	@kubectl apply -f depl/k8s/03-etherscan-monolith.yaml
+
+k8s-pprof-port-forward:
+	@kubectl -n etherscan port-forward etherscan-monolith-instance-0 6060
 
 migrate-check-deps:
 	@if [ -z `which migrate` ]; then \
@@ -99,6 +107,12 @@ mocks:
 	mockgen -package mocks -destination txgraphapi/mocks/mock.go github.com/moratsam/etherscan/txgraphapi/proto TxGraphClient,TxGraph_BlocksClient,TxGraph_WalletTxsClient,TxGraph_WalletsClient
 	mockgen -package mocks -destination depl/service/scanner/mocks/mocks.go github.com/moratsam/etherscan/depl/service/scanner ETHClient,GraphAPI
 	mockgen -package mocks -destination depl/service/scanner/mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph BlockIterator
+
+pprof-cpu:
+	 @go tool pprof -http=":55488" http://localhost:6060/debug/pprof/profile
+
+pprof-mem:
+	@ go tool pprof -http=":55489" http://localhost:6060/debug/pprof/heap
 
 proto: ensure-proto-deps
 	@echo "[protoc] generating protos for API"

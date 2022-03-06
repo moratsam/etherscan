@@ -38,4 +38,4 @@ spec:
           - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
         resources:
           requests:
-            cpu: "1"
+            cpu: "2"

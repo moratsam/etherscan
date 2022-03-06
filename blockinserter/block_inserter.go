@@ -2,10 +2,10 @@ package blockinserter
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
+	"golang.org/x/xerrors"
 
 	"github.com/moratsam/etherscan/txgraph/graph"
 )
@@ -44,24 +44,24 @@ func NewBlockInserter(cfg Config) *BlockInserter {
 func (i *BlockInserter) Start(ctx context.Context) error {
 	headerCh, sub, err := i.client.SubscribeNewHead(ctx)
 	if err != nil {
-		return err
+		return xerrors.Errorf("subscribing new head: %w", err)
 	}
 
-	// Insert every new block number into the graph.
-	go func() {
-		for {
-			select {
-			case <-sub.Err():
-				panic("receiving header")
-			case header := <-headerCh:
-				err := i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
-				if err != nil {
-					fmt.Println("error lock inserter insert block: ", err)
-					panic("block inserter insert block")
-				}
+	for {
+		select {
+		case <-ctx.Done():
+			sub.Unsubscribe()
+			return nil
+		case err := <-sub.Err():
+			return xerrors.Errorf("receiving header: %w", err)
+		case header := <-headerCh:
+			err := i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
+			if err != nil {
+				sub.Unsubscribe()
+				return err
 			}
 		}
-	}()
+	}
 
 	return nil
 }

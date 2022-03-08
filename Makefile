@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env cockroachdb deps docker-run dockerize dockerize-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-cdb-migrations test 
+.PHONY: check-cdb-env cockroachdb deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-cdb-migrations test 
 
 define dsn_missing_error
 
@@ -44,10 +44,7 @@ deps:
 		dep ensure;\
 	fi
 
-docker-run:
-	@docker run -it --rm -p 6060:6060 192.168.39.133:5000/etherscan-monolith:latest
-
-dockerize:
+docker-build:
 	@echo "[docker build] building ${MONOLITH_IMAGE} (tags: ${PREFIX}${MONOLITH_IMAGE}:latest, ${PREFIX}${MONOLITH_IMAGE}:${SHA})"
 	@docker build --file ./depl/Dockerfile \
 		--tag ${PREFIX}${MONOLITH_IMAGE}:latest \
@@ -59,9 +56,10 @@ dockerize:
 		--tag ${PREFIX}${CDB_IMAGE}:${SHA} \
 		. 2>&1 | sed -e "s/^/ | /g"
 
-dockerize-and-push: dockerize push
-	@minikube image load 192.168.39.133:5000/cdb-schema:latest
-	@minikube image load 192.168.39.133:5000/etherscan-monolith:latest
+docker-build-and-push: docker-build push
+
+docker-run:
+	@docker run -it --rm -p 6060:6060 192.168.39.133:5000/etherscan-monolith:latest
 
 ensure-proto-deps:
 	@echo "[go get] ensuring protoc packages are available"

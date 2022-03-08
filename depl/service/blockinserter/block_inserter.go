@@ -87,7 +87,7 @@ func (svc *Service) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		default:
-			svc.cfg.Logger.Info("starting service block-inserter")
+			svc.cfg.Logger.Info("starting block inserter")
 			if err := svc.blockInserter.Start(ctx); err != nil {
 				return err
 			}

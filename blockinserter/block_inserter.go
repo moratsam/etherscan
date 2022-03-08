@@ -47,6 +47,7 @@ func (i *BlockInserter) Start(ctx context.Context) error {
 		return xerrors.Errorf("subscribing new head: %w", err)
 	}
 
+	var header *types.Header
 	for {
 		select {
 		case <-ctx.Done():
@@ -54,7 +55,7 @@ func (i *BlockInserter) Start(ctx context.Context) error {
 			return nil
 		case err := <-sub.Err():
 			return xerrors.Errorf("receiving header: %w", err)
-		case header := <-headerCh:
+		case header = <-headerCh:
 			err := i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
 			if err != nil {
 				sub.Unsubscribe()

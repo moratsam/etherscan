@@ -1,4 +1,3 @@
 create table if not exists scorer (
-	id serial primary key,
-	name varchar(73)
+	name varchar(73) primary key
 );

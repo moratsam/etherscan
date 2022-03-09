@@ -6,17 +6,18 @@ import (
 
 type ScoreStore interface {
 	// Upsert a score.
+	// On conflict of (wallet, scorer), the timestamp and value will be updated.
 	UpsertScore(score *Score) error
 
-	// Insert a new scorer. The scorer's field Id will be populated by the function call.
+	// Upsert a scorer.
 	UpsertScorer(scorer *Scorer) error
 
-	// Get all scorers from the store.
-	Scorers() ([]*Scorer, error)
+	// Returns an iterator for all the scorers.
+	Scorers() (ScorerIterator, error)
 
-	// Search the ScoreStore for a particular and return a result iterator.
+	// Search the ScoreStore by a particular query and return a result iterator.
 	// This is intentionally vague, to allow for easy expansion in the future.
-	Search(query Query) (Iterator, error)
+	Search(query Query) (ScoreIterator, error)
 }
 
 // The value that a scorer outputs for a wallet at a given time.
@@ -28,7 +29,6 @@ type Score struct {
 }
 
 type Scorer struct {
-	Id int
 	Name string
 }
 
@@ -36,8 +36,8 @@ type Scorer struct {
 type QueryType uint8
 
 const (
-	//QueryScorer requests from the score store all scores pertaining to a specified scorer.
-	QueryScorer QueryType = iota
+	//QueryTypeScorer requests from the score store all scores pertaining to a specified scorer.
+	QueryTypeScorer QueryType = iota
 )
 
 // Query encapsulates a set of parameters to use when searching the score store.
@@ -53,8 +53,8 @@ type Query struct {
 	Offset uint64
 }
 
-// Iterator is implemented by objects that can paginate search results.
-type Iterator interface {
+// ScoreIterator is implemented by objects that can paginate search results.
+type ScoreIterator interface {
 	// Close the iterator and release any allocated resources.
 	Close() error
 
@@ -72,3 +72,18 @@ type Iterator interface {
 	TotalCount() uint64
 }
 
+// ScorerIterator is implemented by objects that can iterate scorers.
+type ScorerIterator interface {
+	// Close the iterator and release any allocated resources.
+	Close() error
+
+	// Next loads the next Scorer.
+	// It returns false if no more scorers are available.
+	Next() bool
+
+	// Error returns the last error encountered by the iterator.
+	Error() error
+
+	// Scorer returns the current scorer.
+	Scorer() *Scorer
+}

@@ -143,7 +143,7 @@ func getTxGraph(txGraphURI string, logger *logrus.Entry) (txGraph, error) {
 		return memgraph.NewInMemoryGraph(), nil
 	case "postgresql":
 		logger.Info("using CDB grraph")
-		return cdbgraph.NewCockroachDBGraph(txGraphURI)
+		return cdbgraph.NewCDBGraph(txGraphURI)
 	default:
 		return nil, xerrors.Errorf("unsupported tx graph URI scheme: %q", uri.Scheme)
 	}

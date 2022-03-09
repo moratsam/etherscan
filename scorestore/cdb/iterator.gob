@@ -14,7 +14,7 @@ import (
 
 // blockIterator is a graph.BlockIterator implementation for the cdb graph.
 type blockIterator struct {
-	g *CDBGraph
+	g *CockroachDbGraph
 
 	mu sync.RWMutex
 

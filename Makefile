@@ -132,6 +132,7 @@ push:
 
 run-cdb-migrations: migrate-check-deps check-cdb-env
 	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
+	migrate -source file://scorestore/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
 
 test: 
 	@echo "[go test] running tests and collecting coverage metrics"

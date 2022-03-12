@@ -1,0 +1,4 @@
+-- The cdb migrations of txgraph are run before the migrations scorestore.
+-- An empty up/down migration of the last migration of txgraph is included
+-- in this folder, so the migrate script knows the correct order
+-- and doesn't error out.

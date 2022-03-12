@@ -60,6 +60,8 @@ func (i *blockIterator) Close() error {
 }
 
 func (i *blockIterator) Block() *graph.Block {
+	// The block pointer contents may be overwritten by a graph update; to 
+	// avoid data-races, acquire the read lock and clone the block.
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	block := new(graph.Block)
@@ -125,7 +127,8 @@ func (i *walletIterator) Close() error {
 }
 
 func (i *walletIterator) Wallet() *graph.Wallet {
-	// The transactions are insert-only, so a read lock is necessary.
+	// The wallet pointer contents may be overwritten by a graph update; to 
+	// avoid data-races, acquire the read lock and clone the wallet.
 	i.g.mu.RLock()
 	defer i.g.mu.RUnlock()
 	wallet := new(graph.Wallet)

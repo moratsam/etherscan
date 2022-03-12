@@ -12,7 +12,7 @@ import (
 	"github.com/moratsam/etherscan/txgraph/graph"
 )
 
-// SuiteBase defines a re-usable set of graph-relates tests that can be executed
+// SuiteBase defines a re-usable set of graph-related tests that can be executed
 // against any type that implements graph.Graph.
 type SuiteBase struct {
 	g graph.Graph
@@ -138,8 +138,6 @@ func (s *SuiteBase) TestUpsertBlock(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 	c.Assert(receivedBlock, gc.DeepEquals, secondBlock, gc.Commentf("Original block should not get returned because it's already processed"))
 }
-
-//func (s *SuiteBase) (c *gc.C)
 
 func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	testHash := "47d8"

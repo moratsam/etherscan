@@ -193,7 +193,7 @@ func (g *CDBGraph) bulkInsertTxs(txs []*graph.Tx) error {
 		valueArgs = append(valueArgs, tx.TransactionFee.String())
 		valueArgs = append(valueArgs, tx.Data)
 	}
-	stmt := fmt.Sprintf(`INSERT INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`INSERT INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s on conflict (hash) do nothing`, strings.Join(valueStrings, ","))
 	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
 		if isForeignKeyViolationError(err) {
 			err = graph.ErrUnknownAddress

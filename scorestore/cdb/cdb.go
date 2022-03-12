@@ -2,8 +2,6 @@ package cdb
 
 import (
 	"database/sql"
-	"fmt"
-	"strings"
 
 	"github.com/lib/pq"
 	"golang.org/x/xerrors"
@@ -21,7 +19,7 @@ var (
 	scorerQuery = `select * from scorer`
 
 	// Compile-time check for ensuring CDBScoreStore implements ScoreStore.
-	_ graph.ScoreStore = (*CDBScoreStore)(nil)
+	_ scorestore.ScoreStore = (*CDBScoreStore)(nil)
 )
 
 // CDBScoreStore implements a score store that persists the scores and scorers to 
@@ -53,8 +51,11 @@ func (ss *CDBScoreStore) UpsertScore(score *scorestore.Score) error {
 		score.Wallet, 
 		score.Scorer, 
 		score.Value, 
-		score.Timestamp
+		score.Timestamp,
 	); err != nil {
+		if isForeignKeyViolationError(err) {
+			return xerrors.Errorf("upsert score: %w, %s", scorestore.ErrUnknownScorer, score.Scorer)
+		}
 		return xerrors.Errorf("upsert score: %w", err)
 	}
 	return nil
@@ -70,7 +71,7 @@ func (ss *CDBScoreStore) UpsertScorer(scorer *scorestore.Scorer) error {
 
 // Returns an iterator for all scorers.
 func (ss *CDBScoreStore) Scorers() (scorestore.ScorerIterator, error) {
-	rows, err := ss.db.Query(stmt, query.Expression)
+	rows, err := ss.db.Query(scorerQuery)
 	if err != nil {
 		return nil, xerrors.Errorf("scorers: %w", err)
 	}
@@ -79,13 +80,13 @@ func (ss *CDBScoreStore) Scorers() (scorestore.ScorerIterator, error) {
 
 
 // Search the ScoreStore by a particular query and return a result iterator.
-func (ss *CDBScoreStore) Search(query scorestore.Query) (scorestore.Iterator, error) {
+func (ss *CDBScoreStore) Search(query scorestore.Query) (scorestore.ScoreIterator, error) {
 	var stmt string
-	switch t := query.Type {
+	switch query.Type {
 	case scorestore.QueryTypeScorer:
 		stmt = scoreQuery	
 	default:
-		return nil, xerrors.New("search: unknown query type: ", t.(type))
+		return nil, xerrors.Errorf("search: %w, %s", scorestore.ErrUnknownQueryType, query.Type)
 	}
 
 	rows, err := ss.db.Query(stmt, query.Expression)
@@ -93,4 +94,13 @@ func (ss *CDBScoreStore) Search(query scorestore.Query) (scorestore.Iterator, er
 		return nil, xerrors.Errorf("search with expression: %s : %w", query.Expression, err)
 	}
 	return &scoreIterator{rows: rows}, nil
+}
+
+// Returns true if err indicates a foreign key constraint violation.
+func isForeignKeyViolationError(err error) bool {
+	pqErr, valid := err.(*pq.Error)
+	if !valid {
+		return false
+	}
+	return pqErr.Code.Name() == "foreign_key_violation"
 }

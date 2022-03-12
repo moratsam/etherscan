@@ -141,8 +141,8 @@ func (s *SuiteBase) TestUpsertBlock(c *gc.C) {
 
 func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	testHash := "47d8"
-	fromAddr := s.createAddressFromInt(c, 1);
-	toAddr := s.createAddressFromInt(c, 2);
+	fromAddr := createAddressFromInt(1);
+	toAddr := createAddressFromInt(2);
 	initValue := big.NewInt(3)
 
 	tx := &graph.Tx{
@@ -218,7 +218,7 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 }
 
 func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
-	testAddr := s.createAddressFromInt(c, 123093432)
+	testAddr := createAddressFromInt(123093432)
 
 	// Try to create a wallet with an invalid address
 	err := s.g.UpsertWallets([]*graph.Wallet{&graph.Wallet{Address: "abc"}})
@@ -238,7 +238,7 @@ func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
 }
 
 func (s *SuiteBase) TestFindWallet(c *gc.C) {
-	testAddr := s.createAddressFromInt(c, 123093432)
+	testAddr := createAddressFromInt(123093432)
 	// Create a new wallet
 	original := &graph.Wallet{
 		Address: testAddr,
@@ -262,8 +262,8 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 		wg				 sync.WaitGroup
 		numIterators = 10
 		numTxs       = 100
-		fromAddr 	 = s.createAddressFromInt(c, 1);
-		toAddr 		 = s.createAddressFromInt(c, 2);
+		fromAddr 	 = createAddressFromInt(1);
+		toAddr 		 = createAddressFromInt(2);
 	)
 
 	// Insert two wallets
@@ -343,7 +343,7 @@ func (s *SuiteBase) TestConcurrentWalletIterators(c *gc.C) {
 	)
 
 	for i:=0; i<numTxs; i++ {
-		wallet := &graph.Wallet{Address: s.createAddressFromInt(c, i)}
+		wallet := &graph.Wallet{Address: createAddressFromInt(i)}
 		c.Assert(s.g.UpsertWallets([]*graph.Wallet{wallet}), gc.IsNil)
 	}
 
@@ -417,7 +417,7 @@ func (s *SuiteBase) TestPartitionedWalletIterators(c *gc.C) {
 	numPartitions := 10
 	numWallets	 := 100
 	for i:=0; i<numWallets; i++ {
-		wallet := &graph.Wallet{Address: s.createAddressFromInt(c, i)}
+		wallet := &graph.Wallet{Address: createAddressFromInt(i)}
 		c.Assert(s.g.UpsertWallets([]*graph.Wallet{wallet}), gc.IsNil)
 	}
 
@@ -427,15 +427,14 @@ func (s *SuiteBase) TestPartitionedWalletIterators(c *gc.C) {
 }
 
 // If address is not 40 chars long, string comparisons will not work as expected.
-// The following loop far from efficient, but it's only for tests so it should be fine.
-func (s *SuiteBase) createAddressFromInt(c *gc.C, addressInt int) string {
+// The following is loop far from efficient, but it's only for tests so who cares.
+func createAddressFromInt(addressInt int) string {
 	x := fmt.Sprintf("%x", addressInt) // convert to hex string
 	padding := 40-len(x)
 	for i:=0; i<padding; i++ {
 		x = "0" + x
 	}
 	return x
-
 }
 
 func (s *SuiteBase) partitionedWalletIterator(c *gc.C, partition, numPartitions int) (graph.WalletIterator, error) {

@@ -21,7 +21,7 @@ func (s *SuiteBase) SetScoreStore(ss scorestore.ScoreStore) {
 }
 
 func (s *SuiteBase) TestUpsertScore(c *gc.C) {
-	wallet := s.createAddressFromInt(c, 1)
+	wallet := createAddressFromInt(1)
 	scorer := "test_scorer"
 	original_value := float64(3.7)
 	updated_value := original_value+ 0.1
@@ -122,16 +122,13 @@ func (s *SuiteBase) TestSearch(c *gc.C) {
 
 }
 
-
 // If address is not 40 chars long, string comparisons will not work as expected.
-// The following loop far from efficient, but it's only for tests so it should be fine.
-func (s *SuiteBase) createAddressFromInt(c *gc.C, addressInt int) string {
+// The following is loop far from efficient, but it's only for tests so who cares.
+func createAddressFromInt(addressInt int) string {
 	x := fmt.Sprintf("%x", addressInt) // convert to hex string
 	padding := 40-len(x)
 	for i:=0; i<padding; i++ {
 		x = "0" + x
 	}
 	return x
-
 }
-

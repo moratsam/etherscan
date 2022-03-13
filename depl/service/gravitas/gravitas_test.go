@@ -2,6 +2,8 @@ package gravitas
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
@@ -11,7 +13,8 @@ import (
 
 	"github.com/moratsam/etherscan/depl/partition"
 	"github.com/moratsam/etherscan/depl/service/gravitas/mocks"
-	"github.com/moratsam/etherscan/txgraph/graph"
+	"github.com/moratsam/etherscan/scorestore"
+	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )
 
 var _ = gc.Suite(new(ConfigTestSuite))
@@ -42,7 +45,7 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 
 	cfg = origCfg
 	cfg.ScoreScoreAPI = nil
-	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*index API has not been provided.*")
+	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*scorestore API has not been provided.*")
 
 	cfg = origCfg
 	cfg.PartitionDetector = nil
@@ -82,13 +85,14 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	defer cancelFn()
 
 	addr1, addr2 := createAddressFromInt(1), createAddressFromInt(2)
+	tx := createTx(addr1, addr2, 1, 1)
 
 	mockWalletIt := mocks.NewMockWalletIterator(ctrl)
 	gomock.InOrder(
 		mockWalletIt.EXPECT().Next().Return(true),
-		mockWalletIt.EXPECT().Wallet().Return(&graph.Wallet{Address: addr1}),
+		mockWalletIt.EXPECT().Wallet().Return(&txgraph.Wallet{Address: addr1}),
 		mockWalletIt.EXPECT().Next().Return(true),
-		mockWalletIt.EXPECT().Wallet().Return(&graph.Wallet{Address: addr2}),
+		mockWalletIt.EXPECT().Wallet().Return(&txgraph.Wallet{Address: addr2}),
 		mockWalletIt.EXPECT().Next().Return(false),
 	)
 	mockWalletIt.EXPECT().Error().Return(nil)
@@ -97,21 +101,39 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	mockTxIt := mocks.NewMockTxIterator(ctrl)
 	gomock.InOrder(
 		mockTxIt.EXPECT().Next().Return(true),
-		mockTxIt.EXPECT().Tx().Return(&graph.Tx{From: addr1, To: addr2}),
-		mockTxIt.EXPECT().Next().Return(true),
-		mockTxIt.EXPECT().Tx().Return(&graph.Tx{From: addr2, To: addr1}),
+		mockTxIt.EXPECT().Tx().Return(tx),
 		mockTxIt.EXPECT().Next().Return(false),
 	)
 	mockTxIt.EXPECT().Error().Return(nil)
 	mockTxIt.EXPECT().Close().Return(nil)
 
-	expWalletFilterTime := clk.Now().Add(cfg.UpdateInterval)
-	maxAddress := addr.MustParse("ffffffffffffffffffffffffffffffffffffffff")
-	mockGraph.EXPECT().Wallets(addr.Nil, maxAddress, expWalletFilterTime).Return(mockWalletIt, nil)
-	mockGraph.EXPECT().Txs(addr.Nil, maxAddress, expWalletFilterTime).Return(mockTxIt, nil)
+	mockTxIt2 := mocks.NewMockTxIterator(ctrl)
+	gomock.InOrder(
+		mockTxIt2.EXPECT().Next().Return(true),
+		mockTxIt2.EXPECT().Tx().Return(tx),
+		mockTxIt2.EXPECT().Next().Return(false),
+	)
+	mockTxIt2.EXPECT().Error().Return(nil)
+	mockTxIt2.EXPECT().Close().Return(nil)
 
-	mockScoreScore.EXPECT().UpdateScore(addr1, 0.5)
-	mockScoreScore.EXPECT().UpdateScore(addr2, 0.5)
+	minAddress := "0000000000000000000000000000000000000000"
+	maxAddress := "ffffffffffffffffffffffffffffffffffffffff"
+	mockGraph.EXPECT().Wallets(minAddress, maxAddress).Return(mockWalletIt, nil)
+	mockGraph.EXPECT().WalletTxs(addr1).Return(mockTxIt, nil)
+	mockGraph.EXPECT().WalletTxs(addr2).Return(mockTxIt2, nil)
+
+	score1 := &scorestore.Score{
+		Wallet:	addr1,
+		Scorer:	"balance_eth",
+		Value:	big.NewFloat(-2),
+	}
+	score2 := &scorestore.Score{
+		Wallet:	addr2,
+		Scorer:	"balance_eth",
+		Value:	big.NewFloat(1),
+	}
+	mockScoreScore.EXPECT().UpsertScore(score1)
+	mockScoreScore.EXPECT().UpsertScore(score2)
 
 	go func() {
 		// Wait until the main loop calls time.After (or timeout if
@@ -174,3 +196,13 @@ func createAddressFromInt(addressInt int) string {
 	}
 	return x
 }
+
+func createTx(from, to string, value, transactionFee int64) *txgraph.Tx {
+	return &txgraph.Tx{
+		From: 				from,
+		To: 					to,
+		Value: 				big.NewInt(value),
+		TransactionFee:	big.NewInt(transactionFee),
+	}
+}
+

@@ -18,7 +18,7 @@ import (
 )
 
 //go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/depl/service/gravitas GraphAPI,ScoreScoreAPI
-//go:generate mockgen -package mocks -destination mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph TxIterator, WalletIterator
+//go:generate mockgen -package mocks -destination mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph TxIterator,WalletIterator
 
 // GraphAPI defines as set of API methods for fetching the wallets and their transactions
 // from the wallet graph.
@@ -65,7 +65,7 @@ func (cfg *Config) validate() error {
 		err = multierror.Append(err, xerrors.Errorf("graph API has not been provided"))
 	}
 	if cfg.ScoreScoreAPI == nil {
-		err = multierror.Append(err, xerrors.Errorf("ss API has not been provided"))
+		err = multierror.Append(err, xerrors.Errorf("scorestore API has not been provided"))
 	}
 	if cfg.PartitionDetector == nil {
 		err = multierror.Append(err, xerrors.Errorf("partition detector has not been provided"))
@@ -178,14 +178,14 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 	return nil
 }
 
-func (svc *Service) persistScore(wallet string, value *big.Int) error {
+func (svc *Service) persistScore(wallet string, value *big.Float) error {
 	score := &ss.Score{
 		Wallet:	wallet,
 		Scorer:	"balance_eth",
 		Value:	value,	
 	}
 
-	return svc.cfg.ScoreScoreAPI.UpdateScore(score)
+	return svc.cfg.ScoreScoreAPI.UpsertScore(score)
 }
 
 func (svc *Service) loadWallets(fromAddr, toAddr string) error {
@@ -198,13 +198,17 @@ func (svc *Service) loadWallets(fromAddr, toAddr string) error {
 		wallet := walletIt.Wallet()
 		
 		// Retrieve wallet's transactions.
-		txIt, err := svc.cfg.GraphAPI.WalletTxs()
+		txIt, err := svc.cfg.GraphAPI.WalletTxs(wallet.Address)
 		if err != nil {
 			return err
 		}
 		var txs []*txgraph.Tx
 		for txIt.Next() {
 			txs = append(txs, txIt.Tx())	
+		}
+		if err = txIt.Error(); err != nil {
+			_ = txIt.Close()
+			return err
 		}
 		if err = txIt.Close(); err != nil {
 			return err

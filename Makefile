@@ -133,5 +133,5 @@ run-cdb-migrations: migrate-check-deps check-cdb-env
 
 test: 
 	@echo "[go test] running tests and collecting coverage metrics"
-	@cd gravitas && go test -v -tags all_tests -race -coverprofile=coverage.txt -covermode=atomic ./...
+	@go test -v -tags all_tests -race -coverprofile=coverage.txt -covermode=atomic ./...
 

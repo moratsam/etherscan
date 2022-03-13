@@ -39,7 +39,7 @@ func NewInMemoryScoreStore() (*InMemoryScoreStore) {
 }
 
 // Upserts a Score.
-// On conflict of (wallet, scorer), the timestamp and value will be updated.
+// On conflict of (wallet, scorer), the value will be updated.
 func (ss *InMemoryScoreStore) UpsertScore(score *scorestore.Score) error {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()

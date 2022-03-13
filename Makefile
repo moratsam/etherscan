@@ -100,10 +100,7 @@ migrate-check-deps:
 	fi
 
 mocks:
-	mockgen -package mocks -destination scanner/mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
-	mockgen -package mocks -destination txgraphapi/mocks/mock.go github.com/moratsam/etherscan/txgraphapi/proto TxGraphClient,TxGraph_BlocksClient,TxGraph_WalletTxsClient,TxGraph_WalletsClient
-	mockgen -package mocks -destination depl/service/scanner/mocks/mocks.go github.com/moratsam/etherscan/depl/service/scanner ETHClient,GraphAPI
-	mockgen -package mocks -destination depl/service/scanner/mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph BlockIterator
+	go generate ./...
 
 pprof-cpu:
 	 @go tool pprof -http=":55488" http://localhost:6060/debug/pprof/profile

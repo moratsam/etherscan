@@ -28,14 +28,12 @@ func (s *SuiteBase) TestRefreshOfBlockIterator(c *gc.C) {
 	blockIterator, err := s.g.Blocks()
 	c.Assert(err, gc.IsNil)
 
-	// Make a function that will insert a block after 1 second.
+	// Make a function that will insert a block.
 	go func(block *graph.Block){
-		time.Sleep(1 * time.Second)
 		s.g.UpsertBlock(block)
 	}(testBlock)
 
-	// Because there are no unprocessed blocks when the iterator was created,
-	// this will trigger the blockIterator.refresh() function.
+	time.Sleep(1 * time.Second)
 	c.Assert(blockIterator.Next(), gc.Equals, true, gc.Commentf("block iterator returned false"))
 	receivedBlock1 := blockIterator.Block()
 	receivedBlock2 := blockIterator.Block()
@@ -452,7 +450,6 @@ func (s *SuiteBase) partitionRange(c *gc.C, partition, numPartitions int) (from,
 	var maxAddr = "ffffffffffffffffffffffffffffffffffffffff"
 
 	// Calculate the size of each partition as 2^(4*40) / numPartitions
-	tokenRange := new(big.Int)
 	partSize := new(big.Int)
 	partSize.SetString(maxAddr, 16)
 	partSize = partSize.Div(partSize, big.NewInt(int64(numPartitions)))
@@ -461,6 +458,7 @@ func (s *SuiteBase) partitionRange(c *gc.C, partition, numPartitions int) (from,
 	// By setting the end range for the last partition to maxAddr, we ensure that we always
 	// cover the full range of addresses, even if the range itself is not evenly divisible
 	// by numPartitions.
+	tokenRange := new(big.Int)
 	if partition == 0 {
 		from = minAddr
 	} else {

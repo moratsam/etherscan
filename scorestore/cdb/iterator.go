@@ -2,7 +2,6 @@ package cdb
 
 import (
 	"database/sql"
-	"time"
 
 	"golang.org/x/xerrors"
 
@@ -21,7 +20,6 @@ func (i *scoreIterator) Next() bool {
 		return false
 	}
 
-	var timestamp time.Time
 	var id int64
 	score := new(scorestore.Score)
 	i.lastErr = i.rows.Scan(
@@ -29,9 +27,7 @@ func (i *scoreIterator) Next() bool {
 		&score.Wallet,
 		&score.Scorer,
 		&score.Value,
-		&timestamp,
 	)
-	score.Timestamp = timestamp.UTC()
 
 	if i.lastErr != nil {
 		return false

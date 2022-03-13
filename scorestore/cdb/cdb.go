@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	upsertScoreQuery = `insert into score(wallet, scorer, value, timestamp) values ($1, $2, $3, $4) on conflict (wallet, scorer) do update set value=$3, timestamp=$4`
+	upsertScoreQuery = `insert into score(wallet, scorer, value) values ($1, $2, $3) on conflict (wallet, scorer) do update set value=$3`
 
 	upsertScorerQuery = `insert into scorer(name) values ($1) on conflict (name) do nothing`
 
@@ -44,14 +44,13 @@ func (ss *CDBScoreStore) Close() error {
 }
 
 // Upserts a Score.
-// On conflict of (wallet, scorer), the timestamp and value will be updated.
+// On conflict of (wallet, scorer), the value will be updated.
 func (ss *CDBScoreStore) UpsertScore(score *scorestore.Score) error {
 	if _, err := ss.db.Exec(
 		upsertScoreQuery, 
 		score.Wallet, 
 		score.Scorer, 
 		score.Value, 
-		score.Timestamp,
 	); err != nil {
 		if isForeignKeyViolationError(err) {
 			return xerrors.Errorf("upsert score: %w, %s", scorestore.ErrUnknownScorer, score.Scorer)

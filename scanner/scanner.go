@@ -10,7 +10,7 @@ import (
 	"github.com/moratsam/etherscan/pipeline"
 )
 
-//go:generate mockgen -package mocks destination mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
+//go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
 
 //ETHClient is implemented by objects that can fetch an eth block by its number.
 type ETHClient interface {

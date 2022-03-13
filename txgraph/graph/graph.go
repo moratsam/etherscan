@@ -112,11 +112,11 @@ type Graph interface {
 	// Note: Currently not being used.
 	FindWallet(address string) (*Wallet, error)
 
-	// Returns an iterator for the set of transactions connected to a wallet.
-	// This means the wallet is either the sender or the receiver of the transaction.
-	WalletTxs(address string) (TxIterator, error)
-
 	// Returns an iterator for the set of wallets that belong in the
 	// [fromAddress, toAddress) range.
 	Wallets(fromAddress, toAddress string) (WalletIterator, error)
+
+	// Returns an iterator for the set of transactions connected to a wallet.
+	// This means the wallet is either the sender or the receiver of the transaction.
+	WalletTxs(address string) (TxIterator, error)
 }

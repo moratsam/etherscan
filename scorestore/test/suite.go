@@ -2,10 +2,8 @@ package test
 
 import (
 	"fmt"
-	"time"
 
 	gc "gopkg.in/check.v1"
-	_"golang.org/x/xerrors"
 
 	"github.com/moratsam/etherscan/scorestore"
 )
@@ -25,13 +23,11 @@ func (s *SuiteBase) TestUpsertScore(c *gc.C) {
 	scorer := "test_scorer"
 	original_value := float64(3.7)
 	updated_value := original_value+ 0.1
-	timestamp := time.Now().UTC()
 
 	original := &scorestore.Score{
 		Wallet: wallet,
 		Scorer: scorer,
 		Value: original_value,
-		Timestamp: timestamp,
 	}
 
 	// Attempt to upsert score without existing scorer.
@@ -71,8 +67,6 @@ func (s *SuiteBase) TestUpsertScore(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	//Assert the scores' equivalence.
-	original.Timestamp = original.Timestamp.Truncate(time.Millisecond)
-	retrievedScore.Timestamp = retrievedScore.Timestamp.Truncate(time.Millisecond)
 	c.Assert(retrievedScore, gc.DeepEquals, original, gc.Commentf("Retrieved score does not equal original"))
 }
 

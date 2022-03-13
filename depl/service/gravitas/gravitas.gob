@@ -2,6 +2,7 @@ package gravitas
 
 import (
 	"context"
+	"math/big"
 	"io/ioutil"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
-	"github.com/moratsam/etherscan/bspgraph"
+	"github.com/moratsam/etherscan/depl/partition"
 	"github.com/moratsam/etherscan/gravitas"
 	ss "github.com/moratsam/etherscan/scorestore"
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"

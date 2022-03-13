@@ -53,7 +53,7 @@ func (c *Calculator) SetExecutorFactory(factory bspgraph.ExecutorFactory) {
 // AddVertex inserts a new vertex to the graph with the given id.
 func (c *Calculator) AddVertex(id string, txs []*txgraph.Tx) {
 	vData := VertexData{
-		Value:	big.NewInt(0),
+		Value:	big.NewFloat(0),
 		Txs:		txs,
 	}
 	c.g.AddVertex(id, vData)
@@ -96,7 +96,7 @@ func (c *Calculator) Executor() *bspgraph.Executor {
 func (c *Calculator) registerAggregators() {}
 
 // Scores invokes the provided visitor function for each vertex in the graph.
-func (c *Calculator) Scores(visitFn func(id string, score *big.Int) error) error {
+func (c *Calculator) Scores(visitFn func(id string, score *big.Float) error) error {
 	for id, v := range c.g.Vertices() {
 		if err := visitFn(id, v.Value().(VertexData).Value); err != nil {
 			return err

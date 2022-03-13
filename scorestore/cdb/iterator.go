@@ -2,6 +2,9 @@ package cdb
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
+	"math/big"
 
 	"golang.org/x/xerrors"
 
@@ -20,18 +23,20 @@ func (i *scoreIterator) Next() bool {
 		return false
 	}
 
-	var id int64
+	// Scan Value into the custom type with big.Float handling.
+	helperValue := new(bigFloat)
 	score := new(scorestore.Score)
 	i.lastErr = i.rows.Scan(
-		&id,
 		&score.Wallet,
 		&score.Scorer,
-		&score.Value,
+		&helperValue,
 	)
 
 	if i.lastErr != nil {
 		return false
 	}
+	score.Value = (*big.Float)(helperValue)
+
 
 	i.latchedScore = score
 	return true
@@ -90,4 +95,36 @@ func (i *scorerIterator) Close() error {
 
 func (i *scorerIterator) Scorer() *scorestore.Scorer {
 	return i.latchedScorer
+}
+
+
+// This is a helper type used to define the custom Scan method required to retrieve
+// big.Float data from the database.
+type bigFloat big.Float
+
+// Value implements the Valuer interface for bigFloat
+func (b *bigFloat) Value() (driver.Value, error) {
+   if b != nil {
+      return (*big.Float)(b).String(), nil
+   }
+   return nil, nil
+}
+
+// Scan implements the Scanner interface for bigFloat
+func (b *bigFloat) Scan(value interface{}) error {
+	if value == nil {
+		b = nil
+	}
+	switch t := value.(type) {
+	case float64:
+	 	(*big.Float)(b).SetFloat64(value.(float64))
+	case []byte:
+		_, err := fmt.Sscan(string(value.([]byte)), (*big.Float)(b))
+		if err != nil {
+			fmt.Println("error scanning value:", err)
+		}
+	default:
+		return xerrors.Errorf("could not scan type %T into bigFloat", t)
+	 }
+	return nil
 }

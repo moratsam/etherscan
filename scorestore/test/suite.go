@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"math/big"
 
 	gc "gopkg.in/check.v1"
 
@@ -21,8 +22,8 @@ func (s *SuiteBase) SetScoreStore(ss scorestore.ScoreStore) {
 func (s *SuiteBase) TestUpsertScore(c *gc.C) {
 	wallet := createAddressFromInt(1)
 	scorer := "test_scorer"
-	original_value := float64(3.7)
-	updated_value := original_value+ 0.1
+	original_value := big.NewFloat(3.8)
+	updated_value := big.NewFloat(-3.0157)
 
 	original := &scorestore.Score{
 		Wallet: wallet,
@@ -67,7 +68,9 @@ func (s *SuiteBase) TestUpsertScore(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	//Assert the scores' equivalence.
-	c.Assert(retrievedScore, gc.DeepEquals, original, gc.Commentf("Retrieved score does not equal original"))
+	c.Assert(retrievedScore.Wallet, gc.DeepEquals, original.Wallet, gc.Commentf("Retrieved score does not equal original"))
+	c.Assert(retrievedScore.Scorer, gc.DeepEquals, original.Scorer, gc.Commentf("Retrieved score does not equal original"))
+	c.Assert(retrievedScore.Value.String(), gc.DeepEquals, updated_value.String(), gc.Commentf("Retrieved score does not equal original"))
 }
 
 func (s *SuiteBase) TestUpsertScorer(c *gc.C) {

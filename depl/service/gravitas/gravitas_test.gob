@@ -1,21 +1,21 @@
-package pagerank
+package gravitas
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/PacktPublishing/Hands-On-Software-Engineering-with-Golang/Chapter06/linkgraph/graph"
-	"github.com/PacktPublishing/Hands-On-Software-Engineering-with-Golang/Chapter10/linksrus/partition"
-	"github.com/PacktPublishing/Hands-On-Software-Engineering-with-Golang/Chapter10/linksrus/service/pagerank/mocks"
 	"github.com/golang/mock/gomock"
-	"github.com/google/uuid"
 	"github.com/juju/clock/testclock"
 	gc "gopkg.in/check.v1"
+
+	"github.com/moratsam/etherscan/depl/partition"
+	"github.com/moratsam/etherscan/depl/service/gravitas/mocks"
+	"github.com/moratsam/etherscan/txgraph/graph"
 )
 
 var _ = gc.Suite(new(ConfigTestSuite))
-var _ = gc.Suite(new(PagerankTestSuite))
+var _ = gc.Suite(new(GravitasTestSuite))
 
 type ConfigTestSuite struct{}
 
@@ -25,7 +25,7 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 
 	origCfg := Config{
 		GraphAPI:          mocks.NewMockGraphAPI(ctrl),
-		IndexAPI:          mocks.NewMockIndexAPI(ctrl),
+		ScoreScoreAPI:          mocks.NewMockScoreScoreAPI(ctrl),
 		PartitionDetector: partition.Fixed{},
 		ComputeWorkers:    4,
 		UpdateInterval:    time.Minute,
@@ -41,7 +41,7 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*graph API has not been provided.*")
 
 	cfg = origCfg
-	cfg.IndexAPI = nil
+	cfg.ScoreScoreAPI = nil
 	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*index API has not been provided.*")
 
 	cfg = origCfg
@@ -57,23 +57,23 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*invalid value for update interval.*")
 }
 
-type PagerankTestSuite struct{}
+type GravitasTestSuite struct{}
 
-func (s *PagerankTestSuite) TestFullRun(c *gc.C) {
+func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	ctrl := gomock.NewController(c)
 	defer ctrl.Finish()
 
 	mockGraph := mocks.NewMockGraphAPI(ctrl)
-	mockIndex := mocks.NewMockIndexAPI(ctrl)
+	mockScoreScore := mocks.NewMockScoreScoreAPI(ctrl)
 	clk := testclock.NewClock(time.Now())
 
 	cfg := Config{
-		GraphAPI:          mockGraph,
-		IndexAPI:          mockIndex,
-		PartitionDetector: partition.Fixed{Partition: 0, NumPartitions: 1},
-		Clock:             clk,
-		ComputeWorkers:    1,
-		UpdateInterval:    time.Minute,
+		GraphAPI:        		mockGraph,
+		ScoreScoreAPI:			mockScoreScore,
+		PartitionDetector:	partition.Fixed{Partition: 0, NumPartitions: 1},
+		Clock:           		clk,
+		ComputeWorkers:  		1,
+		UpdateInterval:  		time.Minute,
 	}
 	svc, err := NewService(cfg)
 	c.Assert(err, gc.IsNil)
@@ -81,41 +81,41 @@ func (s *PagerankTestSuite) TestFullRun(c *gc.C) {
 	ctx, cancelFn := context.WithCancel(context.TODO())
 	defer cancelFn()
 
-	uuid1, uuid2 := uuid.New(), uuid.New()
+	addr1, addr2 := createAddressFromInt(1), createAddressFromInt(2)
 
-	mockLinkIt := mocks.NewMockLinkIterator(ctrl)
+	mockWalletIt := mocks.NewMockWalletIterator(ctrl)
 	gomock.InOrder(
-		mockLinkIt.EXPECT().Next().Return(true),
-		mockLinkIt.EXPECT().Link().Return(&graph.Link{ID: uuid1}),
-		mockLinkIt.EXPECT().Next().Return(true),
-		mockLinkIt.EXPECT().Link().Return(&graph.Link{ID: uuid2}),
-		mockLinkIt.EXPECT().Next().Return(false),
+		mockWalletIt.EXPECT().Next().Return(true),
+		mockWalletIt.EXPECT().Wallet().Return(&graph.Wallet{Address: addr1}),
+		mockWalletIt.EXPECT().Next().Return(true),
+		mockWalletIt.EXPECT().Wallet().Return(&graph.Wallet{Address: addr2}),
+		mockWalletIt.EXPECT().Next().Return(false),
 	)
-	mockLinkIt.EXPECT().Error().Return(nil)
-	mockLinkIt.EXPECT().Close().Return(nil)
+	mockWalletIt.EXPECT().Error().Return(nil)
+	mockWalletIt.EXPECT().Close().Return(nil)
 
-	mockEdgeIt := mocks.NewMockEdgeIterator(ctrl)
+	mockTxIt := mocks.NewMockTxIterator(ctrl)
 	gomock.InOrder(
-		mockEdgeIt.EXPECT().Next().Return(true),
-		mockEdgeIt.EXPECT().Edge().Return(&graph.Edge{Src: uuid1, Dst: uuid2}),
-		mockEdgeIt.EXPECT().Next().Return(true),
-		mockEdgeIt.EXPECT().Edge().Return(&graph.Edge{Src: uuid2, Dst: uuid1}),
-		mockEdgeIt.EXPECT().Next().Return(false),
+		mockTxIt.EXPECT().Next().Return(true),
+		mockTxIt.EXPECT().Tx().Return(&graph.Tx{From: addr1, To: addr2}),
+		mockTxIt.EXPECT().Next().Return(true),
+		mockTxIt.EXPECT().Tx().Return(&graph.Tx{From: addr2, To: addr1}),
+		mockTxIt.EXPECT().Next().Return(false),
 	)
-	mockEdgeIt.EXPECT().Error().Return(nil)
-	mockEdgeIt.EXPECT().Close().Return(nil)
+	mockTxIt.EXPECT().Error().Return(nil)
+	mockTxIt.EXPECT().Close().Return(nil)
 
-	expLinkFilterTime := clk.Now().Add(cfg.UpdateInterval)
-	maxUUID := uuid.MustParse("ffffffff-ffff-ffff-ffff-ffffffffffff")
-	mockGraph.EXPECT().Links(uuid.Nil, maxUUID, expLinkFilterTime).Return(mockLinkIt, nil)
-	mockGraph.EXPECT().Edges(uuid.Nil, maxUUID, expLinkFilterTime).Return(mockEdgeIt, nil)
+	expWalletFilterTime := clk.Now().Add(cfg.UpdateInterval)
+	maxAddress := addr.MustParse("ffffffffffffffffffffffffffffffffffffffff")
+	mockGraph.EXPECT().Wallets(addr.Nil, maxAddress, expWalletFilterTime).Return(mockWalletIt, nil)
+	mockGraph.EXPECT().Txs(addr.Nil, maxAddress, expWalletFilterTime).Return(mockTxIt, nil)
 
-	mockIndex.EXPECT().UpdateScore(uuid1, 0.5)
-	mockIndex.EXPECT().UpdateScore(uuid2, 0.5)
+	mockScoreScore.EXPECT().UpdateScore(addr1, 0.5)
+	mockScoreScore.EXPECT().UpdateScore(addr2, 0.5)
 
 	go func() {
 		// Wait until the main loop calls time.After (or timeout if
-		// 10 sec elapse) and advance the time to trigger a new pagerank
+		// 10 sec elapse) and advance the time to trigger a new gravitas
 		// pass.
 		c.Assert(clk.WaitAdvance(time.Minute, 10*time.Second, 1), gc.IsNil)
 
@@ -130,7 +130,7 @@ func (s *PagerankTestSuite) TestFullRun(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 }
 
-func (s *PagerankTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
+func (s *GravitasTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
 	ctrl := gomock.NewController(c)
 	defer ctrl.Finish()
 
@@ -138,7 +138,7 @@ func (s *PagerankTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
 
 	cfg := Config{
 		GraphAPI:          mocks.NewMockGraphAPI(ctrl),
-		IndexAPI:          mocks.NewMockIndexAPI(ctrl),
+		ScoreScoreAPI:          mocks.NewMockScoreScoreAPI(ctrl),
 		PartitionDetector: partition.Fixed{Partition: 1, NumPartitions: 2},
 		Clock:             clk,
 		ComputeWorkers:    1,
@@ -162,4 +162,15 @@ func (s *PagerankTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
 func Test(t *testing.T) {
 	// Run all gocheck test-suites
 	gc.TestingT(t)
+}
+
+// If address is not 40 chars long, string comparisons will not work as expected.
+// The following is loop far from efficient, but it's only for tests so who cares.
+func createAddressFromInt(addressInt int) string {
+	x := fmt.Sprintf("%x", addressInt) // convert to hex string
+	padding := 40-len(x)
+	for i:=0; i<padding; i++ {
+		x = "0" + x
+	}
+	return x
 }

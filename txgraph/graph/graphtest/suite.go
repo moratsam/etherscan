@@ -39,7 +39,7 @@ func (s *SuiteBase) TestRefreshOfBlockIterator(c *gc.C) {
 	receivedBlock2 := blockIterator.Block()
 	if receivedBlock1.Number == 2 {
 		c.Assert(receivedBlock1, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
-	} else {
+	} else if receivedBlock2.Number == 2 {
 		c.Assert(receivedBlock2, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
 	}
 }

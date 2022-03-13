@@ -23,7 +23,7 @@ type spec struct {
 	descr     string
 	vertices_ids  []string
 	vertices_data [][]*txgraph.Tx
-	expScores map[string]*big.Int
+	expScores map[string]*big.Float
 }
 
 type CalculatorTestSuite struct {}
@@ -37,9 +37,9 @@ func (s *CalculatorTestSuite) TestSimple1(c *gc.C) {
 		descr: `1 -> 2 sends 1 eth, transaction fee is 0`,
 		vertices_ids: []string{ address1, address2 },
 		vertices_data: [][]*txgraph.Tx{ []*txgraph.Tx{tx}, []*txgraph.Tx{tx} },
-		expScores: map[string]*big.Int{
-			address1: big.NewInt(-1),
-			address2: big.NewInt(1),
+		expScores: map[string]*big.Float{
+			address1: big.NewFloat(-1),
+			address2: big.NewFloat(1),
 		},
 	}
 
@@ -74,10 +74,10 @@ func (s *CalculatorTestSuite) TestSimple2(c *gc.C) {
 			[]*txgraph.Tx{txs[0], txs[1], txs[3], txs[5]},
 			[]*txgraph.Tx{txs[2], txs[4], txs[5]},
 		},
-		expScores: map[string]*big.Int{
-			address1: big.NewInt(-112),
-			address2: big.NewInt(96),
-			address3: big.NewInt(-39),
+		expScores: map[string]*big.Float{
+			address1: big.NewFloat(-112),
+			address2: big.NewFloat(96),
+			address3: big.NewFloat(-39),
 		},
 	}
 
@@ -102,7 +102,7 @@ func (s *CalculatorTestSuite) assertGravitasScores(c *gc.C, spec spec) {
 	c.Assert(err, gc.IsNil)
 	c.Logf("converged after %d steps", ex.Superstep())
 
-	err = calc.Scores(func(id string, score *big.Int) error {
+	err = calc.Scores(func(id string, score *big.Float) error {
 		c.Assert(score.String(), gc.Equals, spec.expScores[id].String(), gc.Commentf("expected score for %v to be %f;", id, spec.expScores[id].String(), score.String()))
 		return nil
 	})

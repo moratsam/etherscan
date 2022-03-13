@@ -13,7 +13,7 @@ import (
 // VertexData is the data held by each bspgraph vertex in its gravitas calculations.
 type VertexData struct {
 	// The placeholder for the scorer value calculated on this vertex.
-	Value	*big.Int
+	Value	*big.Float
 
 	// A list of all the wallet's incoming and outgoing transactions.
 	Txs	[]*txgraph.Tx
@@ -31,15 +31,15 @@ func makeComputeFunc() bspgraph.ComputeFunc {
 
 		// Calculate value of all incoming transactions,
 		// decreased by value of all outgoing transactions and their fees.
-		sum := big.NewInt(0)
+		sum := big.NewFloat(0)
 		for _, tx := range vData.Txs {
 			if tx.From == v.ID() && tx.To != v.ID() {
-				sum = sum.Sub(sum, tx.Value)
-				sum = sum.Sub(sum, tx.TransactionFee)
+				sum = sum.Sub(sum, new(big.Float).SetInt(tx.Value))
+				sum = sum.Sub(sum, new(big.Float).SetInt(tx.TransactionFee))
 			} else if tx.From != v.ID() && tx.To == v.ID() {
-				sum = sum.Add(sum, tx.Value)
+				sum = sum.Add(sum, new(big.Float).SetInt(tx.Value))
 			} else {
-				sum = sum.Sub(sum, tx.TransactionFee)
+				sum = sum.Sub(sum, new(big.Float).SetInt(tx.TransactionFee))
 			}
 		}
 

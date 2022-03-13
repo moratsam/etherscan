@@ -14,7 +14,7 @@ var (
 
 	upsertScorerQuery = `insert into scorer(name) values ($1) on conflict (name) do nothing`
 
-	scoreQuery = `select * from score where scorer=$1`
+	scoreQuery = `select wallet,scorer,value from score where scorer=$1`
 
 	scorerQuery = `select * from scorer`
 
@@ -50,7 +50,7 @@ func (ss *CDBScoreStore) UpsertScore(score *scorestore.Score) error {
 		upsertScoreQuery, 
 		score.Wallet, 
 		score.Scorer, 
-		score.Value, 
+		score.Value.String(), 
 	); err != nil {
 		if isForeignKeyViolationError(err) {
 			return xerrors.Errorf("upsert score: %w, %s", scorestore.ErrUnknownScorer, score.Scorer)

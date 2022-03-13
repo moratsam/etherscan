@@ -1,5 +1,7 @@
 package scorestore
 
+import "math/big"
+
 type ScoreStore interface {
 	// Upsert a score.
 	// On conflict of (wallet, scorer), the timestamp and value will be updated.
@@ -20,7 +22,7 @@ type ScoreStore interface {
 type Score struct {
 	Wallet string
 	Scorer string
-	Value float64
+	Value *big.Float
 }
 
 type Scorer struct {

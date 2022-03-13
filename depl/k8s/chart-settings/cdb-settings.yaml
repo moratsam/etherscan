@@ -3,7 +3,7 @@
 Resources:
   limits:
     cpu: "4"
-    memory: "4G"
+    memory: "2G"
   requests:
     cpu: "1"
     memory: "1G"

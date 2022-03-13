@@ -8,6 +8,9 @@ metadata:
 spec:
   clusterIP: None
   ports:
+  - port: 80
+    targetPort: 8080
+    name: web
   selector:
     app: etherscan-monolith-instance
 ---
@@ -34,7 +37,10 @@ spec:
         imagePullPolicy: Always
         image: localhost:5000/etherscan-monolith:latest
         args:
+          - "-gravitas-update-interval=1m"
+          - "-partition-detection-mode=dns=etherscan-headless"
           - "-scanner-num-workers=20"
+          - "-score-store-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
           - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
         resources:
           requests:

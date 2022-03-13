@@ -74,14 +74,14 @@ k8s-cdb-connect:
 
 k8s-delete-monolith:
 	@kubectl delete -f depl/k8s/03-etherscan-monolith.yaml
-	#@kubectl delete -f depl/k8s/02-cdb-schema.yaml
+	@kubectl delete -f depl/k8s/02-cdb-schema.yaml
 	#@helm -n=etherscan-data uninstall cdb
 	#@kubectl delete -f depl/k8s/01-namespaces.yaml
 
 k8s-deploy-monolith:
 	#@kubectl apply -f depl/k8s/01-namespaces.yaml
 	#@helm install cdb --namespace=etherscan-data --values depl/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
-	#@kubectl apply -f depl/k8s/02-cdb-schema.yaml
+	@kubectl apply -f depl/k8s/02-cdb-schema.yaml
 	@kubectl apply -f depl/k8s/03-etherscan-monolith.yaml
 
 k8s-pprof-port-forward:

@@ -89,6 +89,7 @@ func (svc *Service) Name() string { return "scanner" }
 
 // Run implements service.Service
 func (svc *Service) Run(ctx context.Context) error {
+	svc.cfg.Logger.Info("starting scanner")
 	defer svc.cfg.Logger.Info("stopped service")
 
 	for {
@@ -104,7 +105,6 @@ func (svc *Service) Run(ctx context.Context) error {
 }
 
 func (svc *Service) scan(ctx context.Context) error {
-
 	svc.cfg.Logger.Info("starting new scan pass")
 
 	blockIt, err := svc.cfg.GraphAPI.Blocks()

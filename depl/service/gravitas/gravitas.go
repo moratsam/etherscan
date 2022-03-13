@@ -30,6 +30,7 @@ type GraphAPI interface {
 // ScoreScoreAPI defines a set of API methods for updating the Gravitas scores of wallets.
 type ScoreScoreAPI interface {
 	UpsertScore(score *ss.Score) error
+	UpsertScorer(scorer *ss.Scorer) error
 }
 
 // Config encapsulates the settings for configuring the Gravitas calculator service.
@@ -113,7 +114,7 @@ func (svc *Service) Name() string { return "Gravitas calculator" }
 
 // Run implements service.Service
 func (svc *Service) Run(ctx context.Context) error {
-	svc.cfg.Logger.WithField("update_interval", svc.cfg.UpdateInterval.String()).Info("starting service")
+	svc.cfg.Logger.WithField("update_interval", svc.cfg.UpdateInterval.String()).Info("starting gravitas calculator")
 	defer svc.cfg.Logger.Info("stopped service")
 
 	for {
@@ -143,7 +144,7 @@ func (svc *Service) Run(ctx context.Context) error {
 }
 
 func (svc *Service) updateGraphScores(ctx context.Context) error {
-	svc.cfg.Logger.Info("starting Gravitas update pass")
+	svc.cfg.Logger.Info("starting gravitas update pass")
 	startAt := svc.cfg.Clock.Now()
 	tick := startAt
 

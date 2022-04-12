@@ -6,17 +6,17 @@ import (
 
 	gc "gopkg.in/check.v1"
 
-	"github.com/moratsam/etherscan/scorestore"
+	ss "github.com/moratsam/etherscan/scorestore"
 )
 
 // SuiteBase defines a re-usable set of scorestore related tests that can be executed
-// against any type that implements scorestore.ScoreStore.
+// against any type that implements ss.ScoreStore.
 type SuiteBase struct {
-	ss scorestore.ScoreStore
+	s ss.ScoreStore
 }
 
-func (s *SuiteBase) SetScoreStore(ss scorestore.ScoreStore) {
-	s.ss = ss
+func (s *SuiteBase) SetScoreStore(scorestore ss.ScoreStore) {
+	s.s = scorestore
 }
 
 func (s *SuiteBase) TestUpsertScore(c *gc.C) {
@@ -25,35 +25,35 @@ func (s *SuiteBase) TestUpsertScore(c *gc.C) {
 	original_value := big.NewFloat(3.8)
 	updated_value := big.NewFloat(-3.0157)
 
-	original := &scorestore.Score{
+	original := &ss.Score{
 		Wallet: wallet,
 		Scorer: scorer,
 		Value: original_value,
 	}
 
 	// Attempt to upsert score without existing scorer.
-	err := s.ss.UpsertScore(original)
+	err := s.s.UpsertScore(original)
 	c.Assert(err, gc.ErrorMatches, ".*unknown scorer.*")
 
 	// Insert scorer.
-	err = s.ss.UpsertScorer(&scorestore.Scorer{Name: scorer})
+	err = s.s.UpsertScorer(&ss.Scorer{Name: scorer})
 	c.Assert(err, gc.IsNil)
 	
 	// insert a new score.
-	err = s.ss.UpsertScore(original)
+	err = s.s.UpsertScore(original)
 	c.Assert(err, gc.IsNil)
 
 	// Update value.
 	original.Value = updated_value
-	err = s.ss.UpsertScore(original)
+	err = s.s.UpsertScore(original)
 	c.Assert(err, gc.IsNil)
 
 	// Get a ScoreIterator.
-	query := scorestore.Query{
-		Type:			scorestore.QueryTypeScorer,
+	query := ss.Query{
+		Type:			ss.QueryTypeScorer,
 		Expression:	scorer,
 	}
-	scoreIterator, err := s.ss.Search(query)
+	scoreIterator, err := s.s.Search(query)
 	c.Assert(err, gc.IsNil)
 
 	// Retrieve the score.
@@ -74,17 +74,17 @@ func (s *SuiteBase) TestUpsertScore(c *gc.C) {
 }
 
 func (s *SuiteBase) TestUpsertScorer(c *gc.C) {
-	scorer1 := &scorestore.Scorer{Name: "test_scorer1"}
-	scorer2 := &scorestore.Scorer{Name: "test_scorer2"}
+	scorer1 := &ss.Scorer{Name: "test_scorer1"}
+	scorer2 := &ss.Scorer{Name: "test_scorer2"}
 
 	// Insert scorers
-	err := s.ss.UpsertScorer(scorer1)
+	err := s.s.UpsertScorer(scorer1)
 	c.Assert(err, gc.IsNil)
-	err = s.ss.UpsertScorer(scorer2)
+	err = s.s.UpsertScorer(scorer2)
 	c.Assert(err, gc.IsNil)
 
 	// Get a ScorerIterator.
-	scorerIterator, err := s.ss.Scorers()
+	scorerIterator, err := s.s.Scorers()
 	c.Assert(err, gc.IsNil)
 
 	// Retrieve the scorers.
@@ -109,11 +109,11 @@ func (s *SuiteBase) TestUpsertScorer(c *gc.C) {
 
 func (s *SuiteBase) TestSearch(c *gc.C) {
 	// Attempt to get a ScoreIterator with an invalid query type.
-	query := scorestore.Query{
+	query := ss.Query{
 		Type:			73,
 		Expression:	"some expression",
 	}
-	scoreIterator, err := s.ss.Search(query)
+	scoreIterator, err := s.s.Search(query)
 	c.Assert(scoreIterator, gc.IsNil)
 	c.Assert(err, gc.ErrorMatches, ".*unknown query type.*")
 

@@ -1,0 +1,42 @@
+syntax="proto3";
+package proto;
+
+import "google/protobuf/empty.proto";
+
+
+service ScoreStore {
+	// Upsert a score.
+	// On conflict of (wallet, scorer), the value will be updated.
+	rpc UpsertScore(Score) returns (google.protobuf.Empty);
+
+	// Upsert a scorer.
+	rpc UpsertScorer(Scorer) returns (google.protobuf.Empty);
+
+	// Streams back all scorers.
+	rpc Scorers(google.protobuf.Empty) returns (stream Scorer);
+
+	// Search the ScoreStore by a particular query and stream the scores back to the client.
+	rpc Search(Query) returns (stream Score);
+}
+
+// The value that a scorer outputs for a wallet at a given time.
+message Score {
+	string wallet = 1;
+	string scorer = 2;
+	string value  = 3;
+}
+
+message Scorer {
+	string name = 1;
+}
+
+// Query represents a search query.
+message Query {
+	enum QueryType {
+		SCORER = 0;
+	}
+
+	QueryType type		= 1;
+	string expression = 2;
+	uint64 offset     = 3;
+}

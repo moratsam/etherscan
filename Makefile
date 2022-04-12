@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env cockroachdb deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-cdb-migrations test 
+.PHONY: check-cdb-env cockroachdb deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-cdb-migrations tags test 
 
 define dsn_missing_error
 
@@ -109,12 +109,15 @@ pprof-mem:
 	@ go tool pprof -http=":55489" http://localhost:6060/debug/pprof/heap
 
 proto: ensure-proto-deps
-	@echo "[protoc] generating protos for API"
+	@echo "[protoc] generating protos for txgraph API"
 	@protoc --gofast_out=\
 	Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,\
 	plugins=grpc:. \
 	txgraphapi/proto/api.proto
-
+	@echo "[protoc] generating protos for scorestore API"
+	@protoc --gofast_out=\
+	plugins=grpc:. \
+	scorestoreapi/proto/api.proto
 
 push:
 	@echo "[docker push] pushing ${PREFIX}${MONOLITH_IMAGE}:latest"
@@ -130,6 +133,9 @@ push:
 run-cdb-migrations: migrate-check-deps check-cdb-env
 	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
 	migrate -source file://scorestore/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
+
+tags:
+	@ctags -R
 
 test: 
 	@echo "[go test] running tests and collecting coverage metrics"

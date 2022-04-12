@@ -4,7 +4,7 @@ import "math/big"
 
 type ScoreStore interface {
 	// Upsert a score.
-	// On conflict of (wallet, scorer), the timestamp and value will be updated.
+	// On conflict of (wallet, scorer), the value will be updated.
 	UpsertScore(score *Score) error
 
 	// Upsert a scorer.

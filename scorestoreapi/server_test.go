@@ -8,7 +8,6 @@ import (
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	_"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 	gc "gopkg.in/check.v1"

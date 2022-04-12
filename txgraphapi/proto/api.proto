@@ -4,6 +4,27 @@ package proto;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
+// TxGraph provides an RPC layer for accessing a txgraph store.
+service TxGraph {
+	// Streams unprocessed blocks.
+	rpc Blocks(google.protobuf.Empty) returns (stream Block);
+
+	// Upserts a block.
+	rpc UpsertBlock(Block) returns (google.protobuf.Empty);
+
+	// Inserts the transactions.
+	rpc InsertTxs(TxBatch) returns (google.protobuf.Empty);
+
+	// Upserts a wallet.
+	rpc UpsertWallets(WalletBatch) returns (google.protobuf.Empty);
+
+	// Streams all transactions connected to a wallet.
+	rpc WalletTxs(Wallet) returns (stream Tx);
+
+	// Streams all wallets in the specified range.
+	rpc Wallets(Range) returns (stream Wallet);
+}
+
 // Describes a block in the txgraph.
 message Block {
 	int32 number	= 1;
@@ -49,23 +70,3 @@ message Range {
 	string toAddress = 2;
 }
 
-// TxGraph provides an RPC layer for accessing a txgraph store.
-service TxGraph {
-	// Streams unprocessed blocks.
-	rpc Blocks(google.protobuf.Empty) returns (stream Block);
-
-	// Upserts a block.
-	rpc UpsertBlock(Block) returns (google.protobuf.Empty);
-
-	// Inserts the transactions.
-	rpc InsertTxs(TxBatch) returns (google.protobuf.Empty);
-
-	// Upserts a wallet.
-	rpc UpsertWallets(WalletBatch) returns (google.protobuf.Empty);
-
-	// Streams all transactions connected to a wallet.
-	rpc WalletTxs(Wallet) returns (stream Tx);
-
-	// Streams all wallets in the specified range.
-	rpc Wallets(Range) returns (stream Wallet);
-}

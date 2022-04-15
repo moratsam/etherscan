@@ -56,10 +56,25 @@ func (s *ScoreStoreServer) Scorers(_ *empty.Empty, w proto.ScoreStore_ScorersSer
 	}
 	defer func() { _ = it.Close() }()
 
+
+
+	// Send back the total result count.
+	countRes := &proto.ScorersResponse{
+		Result: &proto.ScorersResponse_ScorerCount{ScorerCount: it.TotalCount()},
+	}
+	if err = w.Send(countRes); err != nil {
+		return err
+	}
+
+	// Start streaming.
 	for it.Next() {
 		scorer := it.Scorer()
-		msg := &proto.Scorer{
-			Name:	scorer.Name,
+		msg := &proto.ScorersResponse{
+			Result: &proto.ScorersResponse_Scorer{
+				Scorer: &proto.Scorer{
+					Name: scorer.Name,
+				},
+			},
 		}
 		if err := w.Send(msg); err != nil {
 			return err
@@ -87,12 +102,25 @@ func (s *ScoreStoreServer) Search(req *proto.Query, w proto.ScoreStore_SearchSer
 	}
 	defer func() { _ = it.Close() }()
 
+	// Send back the total result count.
+	countRes := &proto.SearchResponse{
+		Result: &proto.SearchResponse_ScoreCount{ScoreCount: it.TotalCount()},
+	}
+	if err = w.Send(countRes); err != nil {
+		return err
+	}
+
+	// Start streaming.
 	for it.Next() {
 		score := it.Score()
-		msg := &proto.Score{
-			Wallet:	score.Wallet,
-			Scorer:	score.Scorer,
-			Value:	score.Value.String(),
+		msg := &proto.SearchResponse{
+			Result: &proto.SearchResponse_Score{
+				Score: &proto.Score{
+					Wallet:	score.Wallet,
+					Scorer:	score.Scorer,
+					Value:	score.Value.String(),
+				},
+			},
 		}
 		if err := w.Send(msg); err != nil {
 			return err

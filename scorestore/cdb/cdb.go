@@ -18,6 +18,10 @@ var (
 
 	scorerQuery = `select * from scorer`
 
+	totalScoresQuery = `select count(*) from score where scorer=$1`
+
+	totalScorersQuery = `select count(*) from scorer`
+
 	// Compile-time check for ensuring CDBScoreStore implements ScoreStore.
 	_ scorestore.ScoreStore = (*CDBScoreStore)(nil)
 )
@@ -70,29 +74,45 @@ func (ss *CDBScoreStore) UpsertScorer(scorer *scorestore.Scorer) error {
 
 // Returns an iterator for all scorers.
 func (ss *CDBScoreStore) Scorers() (scorestore.ScorerIterator, error) {
+	var totalRows uint64
+	row := ss.db.QueryRow(totalScorersQuery)
+	if err := row.Scan(&totalRows); err != nil {
+		return nil, xerrors.Errorf("scorers: %w", err)
+	}
+
 	rows, err := ss.db.Query(scorerQuery)
 	if err != nil {
 		return nil, xerrors.Errorf("scorers: %w", err)
 	}
-	return &scorerIterator{rows: rows}, nil
+	return &scorerIterator{rows: rows, totalRows: totalRows}, nil
 }
 
 
 // Search the ScoreStore by a particular query and return a result iterator.
 func (ss *CDBScoreStore) Search(query scorestore.Query) (scorestore.ScoreIterator, error) {
 	var stmt string
+	var totalRows uint64
+
+	// Get query type and total number of rows.
 	switch query.Type {
 	case scorestore.QueryTypeScorer:
 		stmt = scoreQuery	
+
+		// Get total number of rows.
+		row := ss.db.QueryRow(totalScoresQuery, query.Expression)
+		if err := row.Scan(&totalRows); err != nil {
+			return nil, xerrors.Errorf("total rows with expression: %s : %w", query.Expression, err)
+		}
 	default:
 		return nil, xerrors.Errorf("search: %w, %s", scorestore.ErrUnknownQueryType, query.Type)
 	}
 
+	// Get rows.
 	rows, err := ss.db.Query(stmt, query.Expression)
 	if err != nil {
 		return nil, xerrors.Errorf("search with expression: %s : %w", query.Expression, err)
 	}
-	return &scoreIterator{rows: rows}, nil
+	return &scoreIterator{rows: rows, totalRows: totalRows}, nil
 }
 
 // Returns true if err indicates a foreign key constraint violation.

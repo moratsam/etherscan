@@ -2,12 +2,9 @@ package scorestoreapi_test
 
 import (
 	"context"
-	_"fmt"
-	"io"
 	"math/big"
 	"net"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 	gc "gopkg.in/check.v1"
@@ -27,7 +24,7 @@ type ServerTestSuite struct{
 	grpcSrv		*grpc.Server
 
 	cliConn		*grpc.ClientConn
-	cli			proto.ScoreStoreClient
+	cli			*ssapi.ScoreStoreClient
 }
 
 func (s *ServerTestSuite) SetUpTest(c *gc.C) {
@@ -50,7 +47,8 @@ func (s *ServerTestSuite) SetUpTest(c *gc.C) {
 		grpc.WithInsecure(),
 	)
 	c.Assert(err, gc.IsNil)
-	s.cli = proto.NewScoreStoreClient(s.cliConn)
+	proto_cli := proto.NewScoreStoreClient(s.cliConn)
+	s.cli = ssapi.NewScoreStoreClient(context.TODO(), proto_cli)
 }
 
 func (s *ServerTestSuite) TearDownTest(c *gc.C) {
@@ -65,81 +63,77 @@ func (s *ServerTestSuite) TestUpsertScore(c *gc.C) {
 	original_value := big.NewFloat(3.8)
 	updated_value := big.NewFloat(-0.0371)
 
-	score := &proto.Score{
+	score := &ss.Score{
 		Wallet:	wallet,
 		Scorer:	scorer,
-		Value:	original_value.String(),
+		Value:	original_value,
 	}
 
 	// Insert scorer.
-	_, err := s.cli.UpsertScorer(context.TODO(), &proto.Scorer{Name: scorer})
+	err := s.cli.UpsertScorer(&ss.Scorer{Name: scorer})
 	c.Assert(err, gc.IsNil)
 
 	// Insert score.
-	_, err = s.cli.UpsertScore(context.TODO(), score)
+	err = s.cli.UpsertScore(score)
 	c.Assert(err, gc.IsNil)
 
 	// Upsert score.
-	score.Value = updated_value.String()
-	_, err = s.cli.UpsertScore(context.TODO(), score)
+	score.Value = updated_value
+	err = s.cli.UpsertScore(score)
 	c.Assert(err, gc.IsNil)
 
-	// Get stream of search results.
-	stream, err := s.cli.Search(context.TODO(), &proto.Query{
-		Type:	proto.Query_SCORER,
+	// Get iterator for score search results.
+	it, err := s.cli.Search(ss.Query{
+		Type:	ss.QueryTypeScorer,
 		Expression: "some_scorer",
 	})
 	c.Assert(err, gc.IsNil)
 
-	// Consume scores from stream.
+	// Consume scores.
 	var scoreCount int
-	for {
-		score, err := stream.Recv()
+	for it.Next() {
+		current_score := it.Score()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			c.Fatal(err)
+			c.Assert(err, gc.IsNil)
 		}
-		
-		c.Assert(score.Wallet, gc.Equals, wallet)
-		c.Assert(score.Scorer, gc.Equals, scorer)
-		c.Assert(score.Value, gc.Equals, updated_value.String())
+		c.Assert(current_score.Wallet, gc.Equals, score.Wallet)
+		c.Assert(current_score.Scorer, gc.Equals, score.Scorer)
+		c.Assert(current_score.Value.String(), gc.Equals, score.Value.String())
 		scoreCount++
 	}
 	
 	c.Assert(scoreCount, gc.Equals, 1)
+	c.Assert(uint64(scoreCount), gc.Equals, it.TotalCount())
+	c.Assert(it.Error(), gc.IsNil)
+	c.Assert(it.Close(), gc.IsNil)
 }
 
 func (s *ServerTestSuite) TestUpsertScorer(c *gc.C) {
 	name := "some_name"
 
-	scorer := &proto.Scorer{
-		Name: name,
-	}
+	scorer := &ss.Scorer{Name: name}
 
 	// Insert scorer.
-	_, err := s.cli.UpsertScorer(context.TODO(), scorer)
+	err := s.cli.UpsertScorer(scorer)
 	c.Assert(err, gc.IsNil)
 
-	// Get stream of scorers.
-	stream, err := s.cli.Scorers(context.TODO(), new(empty.Empty))
+	// Get iterator for scorers
+	it, err := s.cli.Scorers()
 	c.Assert(err, gc.IsNil)
 
-	// Consume scorers from stream.
+	// Consume scorers.
 	var scorerCount int
-	for {
-		scorer, err := stream.Recv()
+	for it.Next() {
+		current_scorer := it.Scorer()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			c.Fatal(err)
+			c.Assert(err, gc.IsNil)
 		}
-		
-		c.Assert(scorer.Name, gc.Equals, name)
+		c.Assert(current_scorer, gc.DeepEquals, scorer)
 		scorerCount++
 	}
 	
 	c.Assert(scorerCount, gc.Equals, 1)
+	c.Assert(uint64(scorerCount), gc.Equals, it.TotalCount())
+	c.Assert(it.Error(), gc.IsNil)
+	c.Assert(it.Close(), gc.IsNil)
 }

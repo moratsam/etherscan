@@ -10,7 +10,7 @@ import (
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )
 
-// Calculator executes the iterative version of the Gravitas algorithm on a graph
+// Calculator executes the iterative version of the Gravitas algorithm on a graph.
 type Calculator struct {
 	g   *bspgraph.Graph
 	cfg Config

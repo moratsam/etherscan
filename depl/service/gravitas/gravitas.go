@@ -17,7 +17,7 @@ import (
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )
 
-//go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/depl/service/gravitas GraphAPI,ScoreScoreAPI
+//go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/depl/service/gravitas GraphAPI,ScoreStoreAPI
 //go:generate mockgen -package mocks -destination mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph TxIterator,WalletIterator
 
 // GraphAPI defines as set of API methods for fetching the wallets and their transactions
@@ -27,8 +27,8 @@ type GraphAPI interface {
 	Wallets(fromAddress, toAddress string) (txgraph.WalletIterator, error)
 }
 
-// ScoreScoreAPI defines a set of API methods for updating the Gravitas scores of wallets.
-type ScoreScoreAPI interface {
+// ScoreStoreAPI defines a set of API methods for updating the Gravitas scores of wallets.
+type ScoreStoreAPI interface {
 	UpsertScore(score *ss.Score) error
 	UpsertScorer(scorer *ss.Scorer) error
 }
@@ -39,7 +39,7 @@ type Config struct {
 	GraphAPI GraphAPI
 
 	// An API for updating the Gravitas scores of wallets.
-	ScoreScoreAPI ScoreScoreAPI
+	ScoreStoreAPI ScoreStoreAPI
 
 	// An API for detecting the partition assignments for this service.
 	PartitionDetector partition.Detector
@@ -65,7 +65,7 @@ func (cfg *Config) validate() error {
 	if cfg.GraphAPI == nil {
 		err = multierror.Append(err, xerrors.Errorf("graph API has not been provided"))
 	}
-	if cfg.ScoreScoreAPI == nil {
+	if cfg.ScoreStoreAPI == nil {
 		err = multierror.Append(err, xerrors.Errorf("scorestore API has not been provided"))
 	}
 	if cfg.PartitionDetector == nil {
@@ -100,7 +100,7 @@ func NewService(cfg Config) (*Service, error) {
 
 	calculator, err := gravitas.NewCalculator(gravitas.Config{ComputeWorkers: cfg.ComputeWorkers})
 	if err != nil {
-		return nil, xerrors.Errorf("gravitas service: config validation failed: %w", err)
+		return nil, xerrors.Errorf("gravitas service: new calculator creation failed: %w", err)
 	}
 
 	return &Service{
@@ -186,7 +186,7 @@ func (svc *Service) persistScore(wallet string, value *big.Float) error {
 		Value:	value,	
 	}
 
-	return svc.cfg.ScoreScoreAPI.UpsertScore(score)
+	return svc.cfg.ScoreStoreAPI.UpsertScore(score)
 }
 
 func (svc *Service) loadWallets(fromAddr, toAddr string) error {

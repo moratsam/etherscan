@@ -1,10 +1,5 @@
 package gravitas
 
-import (
-	_ "github.com/hashicorp/go-multierror"
-	_ "golang.org/x/xerrors"
-)
-
 // Config encapsulates the required parameters for creating a new Gravitas
 // calculator instance.
 type Config struct {

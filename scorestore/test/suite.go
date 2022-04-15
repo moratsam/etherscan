@@ -57,6 +57,7 @@ func (s *SuiteBase) TestUpsertScore(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	// Retrieve the score.
+	c.Assert(scoreIterator.TotalCount(), gc.Equals, uint64(1), gc.Commentf("total count should equal 1"))
 	c.Assert(scoreIterator.Next(), gc.Equals, true, gc.Commentf("score iterator returned false"))
 	err = scoreIterator.Error()
 	c.Assert(err, gc.IsNil)
@@ -88,6 +89,7 @@ func (s *SuiteBase) TestUpsertScorer(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	// Retrieve the scorers.
+	c.Assert(scorerIterator.TotalCount(), gc.Equals, uint64(2), gc.Commentf("total count should equal 2"))
 	c.Assert(scorerIterator.Next(), gc.Equals, true, gc.Commentf("scorer iterator returned false"))
 	retrievedScorer1 := scorerIterator.Scorer()
 	c.Assert(scorerIterator.Next(), gc.Equals, true, gc.Commentf("scorer iterator returned false"))
@@ -118,6 +120,7 @@ func (s *SuiteBase) TestSearch(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, ".*unknown query type.*")
 
 }
+
 
 // If address is not 40 chars long, string comparisons will not work as expected.
 // The following is loop far from efficient, but it's only for tests so who cares.

@@ -3,13 +3,10 @@ package txgraphapi_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"math/big"
 	"net"
 	"time"
 
-	"github.com/gogo/protobuf/types"
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 	gc "gopkg.in/check.v1"
@@ -29,7 +26,7 @@ type ServerTestSuite struct{
 	grpcSrv		*grpc.Server
 
 	cliConn		*grpc.ClientConn
-	cli			proto.TxGraphClient
+	cli			*txgraphapi.TxGraphClient
 }
 
 func (s *ServerTestSuite) SetUpTest(c *gc.C) {
@@ -52,7 +49,8 @@ func (s *ServerTestSuite) SetUpTest(c *gc.C) {
 		grpc.WithInsecure(),
 	)
 	c.Assert(err, gc.IsNil)
-	s.cli = proto.NewTxGraphClient(s.cliConn)
+	proto_cli := proto.NewTxGraphClient(s.cliConn)
+	s.cli = txgraphapi.NewTxGraphClient(context.TODO(), proto_cli)
 }
 
 func (s *ServerTestSuite) TearDownTest(c *gc.C) {
@@ -66,43 +64,39 @@ func (s *ServerTestSuite) TestUpsertBlock(c *gc.C) {
 	testBlockNumber2 := 2
 
 	// Create and insert the first block
-	_, err := s.cli.UpsertBlock(context.TODO(), &proto.Block{Number: int32(testBlockNumber1)})
+	err := s.cli.UpsertBlock(&graph.Block{Number: testBlockNumber1})
 	c.Assert(err, gc.IsNil)
 	
 	// Update existing block, set Processed to true
-	updated := &proto.Block{
-		Number: 		int32(testBlockNumber1),
+	updated := &graph.Block{
+		Number: 		testBlockNumber1,
 		Processed:	true,
 	}
-	_, err = s.cli.UpsertBlock(context.TODO(), updated)
+	err = s.cli.UpsertBlock(updated)
 	c.Assert(err, gc.IsNil)
 
 	// Create and insert the second block
-	secondBlock := &proto.Block{
-		Number: 		int32(testBlockNumber2),
-	}
-	_, err = s.cli.UpsertBlock(context.TODO(), secondBlock)
+	secondBlock := &graph.Block{Number: testBlockNumber2}
+	err = s.cli.UpsertBlock(secondBlock)
 	c.Assert(err, gc.IsNil)
 
 	// Subscribe to blocks and receive a block and verify it's the secondBlock
-	stream, err := s.cli.Blocks(context.TODO(), new(empty.Empty))
+	it, err := s.cli.Blocks()
 	c.Assert(err, gc.IsNil)
 	var cnt int
-	for {
-		next, err := stream.Recv()
+	for it.Next() {
+		next := it.Block()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			c.Fatal(err)
+			c.Assert(err, gc.IsNil)
 		}
-
 		c.Assert(next, gc.DeepEquals, secondBlock, gc.Commentf("Original block should not get returned because it's already processed"))
-		cnt++
-		break
+		cnt++;
+		break;
 	}
-
+	
 	c.Assert(cnt, gc.Equals, 1)
+	c.Assert(it.Error(), gc.IsNil)
+	c.Assert(it.Close(), gc.IsNil)
 }
 
 
@@ -113,70 +107,60 @@ func (s *ServerTestSuite) TestInsertTxs(c *gc.C) {
 	initValue := big.NewInt(3)
 
 	// Create and insert wallets.
-	reqWallets := []*proto.Wallet{
-		&proto.Wallet{Address: fromAddr},
-		&proto.Wallet{Address: toAddr},
+	wallets := []*graph.Wallet{
+		&graph.Wallet{Address: fromAddr},
+		&graph.Wallet{Address: toAddr},
 	}
-	req := &proto.WalletBatch{Wallets: reqWallets}
-	_, err := s.cli.UpsertWallets(context.TODO(), req)
+	err := s.cli.UpsertWallets(wallets)
 	c.Assert(err, gc.IsNil)
 
 	// Create and insert transaction.
-	timestamp, err := types.TimestampProto(time.Now().UTC())
-	c.Assert(err, gc.IsNil)
-
-	reqTxs := []*proto.Tx{
-		&proto.Tx{
+	txs := []*graph.Tx{
+		&graph.Tx{
 			Hash:					testHash,
-			Status: 				proto.Tx_TxStatus(graph.Success),
-			Block: 				big.NewInt(111).String(),
-			Timestamp:			timestamp,
+			Status: 				graph.Success,
+			Block: 				big.NewInt(111),
+			Timestamp:			time.Now().UTC(),
 			From: 				fromAddr,
 			To: 					toAddr,
-			Value: 				initValue.String(),
-			TransactionFee:	big.NewInt(323).String(),
+			Value: 				initValue,
+			TransactionFee:	big.NewInt(323),
 			Data: 				make([]byte, 10),
 		},
 	}
-	req2 := &proto.TxBatch{Txs: reqTxs}
-
-	_, err = s.cli.InsertTxs(context.TODO(), req2)
+	err = s.cli.InsertTxs(txs)
 	c.Assert(err, gc.IsNil)
 
 	// Retrieve transaction from WalletTxs iterators of both wallets.
-	stream, err := s.cli.WalletTxs(context.TODO(), reqWallets[0])
+	it, err := s.cli.WalletTxs(wallets[0])
 	c.Assert(err, gc.IsNil)
 	var cnt int
-	for {
-		next, err := stream.Recv()
+	for it.Next() {
+		next := it.Tx()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			c.Fatal(err)
+			c.Assert(err, gc.IsNil)
 		}
-
-		c.Assert(next, gc.DeepEquals, reqTxs[0], gc.Commentf("tx should equal only tx"))
-		cnt++
+		c.Assert(next, gc.DeepEquals, txs[0], gc.Commentf("tx should equal only tx"))
+		cnt++;
 	}
 	c.Assert(cnt, gc.Equals, 1)
+	c.Assert(it.Error(), gc.IsNil)
+	c.Assert(it.Close(), gc.IsNil)
 
-	stream, err = s.cli.WalletTxs(context.TODO(), reqWallets[1])
+	it, err = s.cli.WalletTxs(wallets[1])
 	c.Assert(err, gc.IsNil)
 	cnt = 0
-	for {
-		next, err := stream.Recv()
+	for it.Next() {
+		next := it.Tx()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			c.Fatal(err)
+			c.Assert(err, gc.IsNil)
 		}
-
-		c.Assert(next, gc.DeepEquals, reqTxs[0], gc.Commentf("tx should equal only tx"))
-		cnt++
+		c.Assert(next, gc.DeepEquals, txs[0], gc.Commentf("tx should equal only tx"))
+		cnt++;
 	}
 	c.Assert(cnt, gc.Equals, 1)
+	c.Assert(it.Error(), gc.IsNil)
+	c.Assert(it.Close(), gc.IsNil)
 }
 
 func (s *ServerTestSuite) TestUpsertWallets(c *gc.C) {
@@ -184,35 +168,28 @@ func (s *ServerTestSuite) TestUpsertWallets(c *gc.C) {
 	toAddr := createAddressFromInt(2);
 
 	// Create and insert wallets.
-	reqWallets := []*proto.Wallet{
-		&proto.Wallet{Address: fromAddr},
-		&proto.Wallet{Address: toAddr},
+	wallets := []*graph.Wallet{
+		&graph.Wallet{Address: fromAddr},
+		&graph.Wallet{Address: toAddr},
 	}
-	req := &proto.WalletBatch{Wallets: reqWallets}
-	_, err := s.cli.UpsertWallets(context.TODO(), req)
+	err := s.cli.UpsertWallets(wallets)
 	c.Assert(err, gc.IsNil)
 
-	// Open stream and consume wallets.
-	req2 := &proto.Range{
-		FromAddress:	fromAddr,
-		ToAddress:		createAddressFromInt(3),
-	}
-	stream, err := s.cli.Wallets(context.TODO(), req2)
+	// Consume wallets.
+	it, err := s.cli.Wallets(fromAddr, createAddressFromInt(3))
 	c.Assert(err, gc.IsNil)
-	var cnt int
-	for {
-		next, err := stream.Recv()
+	cnt := 0
+	for it.Next() {
+		next := it.Wallet()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			c.Fatal(err)
+			c.Assert(err, gc.IsNil)
 		}
-
-		c.Assert(next, gc.DeepEquals, reqWallets[cnt], gc.Commentf("wallet should equal"))
-		cnt++
+		c.Assert(next, gc.DeepEquals, wallets[cnt], gc.Commentf("wallet should equal"))
+		cnt++;
 	}
 	c.Assert(cnt, gc.Equals, 2)
+	c.Assert(it.Error(), gc.IsNil)
+	c.Assert(it.Close(), gc.IsNil)
 }
 
 // If address is not 40 chars long, string comparisons will not work as expected.

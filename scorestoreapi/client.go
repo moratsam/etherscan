@@ -12,8 +12,6 @@ import (
 	"github.com/moratsam/etherscan/scorestoreapi/proto"
 )
 
-//go:generate mockgen -package mocks -destination mocks/mock.go github.com/moratsam/etherscan/scorestoreapi/proto ScoreStoreClient,ScoreStore_ScorersClient,ScoreStore_SearchClient
-
 // ScoreStoreClient provides an API compatible with the scorestore.ScoreStore interface
 // for interacting with scorestore instances exposed by a remote gRPC server.
 type ScoreStoreClient struct {
@@ -47,39 +45,58 @@ func (c *ScoreStoreClient) UpsertScorer(scorer *ss.Scorer) error {
 }
 
 func (c *ScoreStoreClient) Scorers() (ss.ScorerIterator, error) {
-	req := new(empty.Empty)
-
 	ctx, cancelFn := context.WithCancel(c.ctx)
+	req := new(empty.Empty)
 	stream, err := c.cli.Scorers(ctx, req)
 	if err != nil {
 		cancelFn()
 		return nil, err
 	}
 
-	return &scorerIterator{stream: stream, cancelFn: cancelFn}, nil
+	// Read the result count.
+	res, err := stream.Recv()
+	if err != nil {
+		cancelFn()
+		return nil, err
+	} else if res.GetScorer() != nil {
+		cancelFn()
+		return nil, xerrors.Errorf("expected server to report the result count before sending any scorers")
+	}
+
+	return &scorerIterator{stream: stream, totalCount: res.GetScorerCount(), cancelFn: cancelFn}, nil
 }
 
 func (c *ScoreStoreClient) Search(query ss.Query) (ss.ScoreIterator, error) {
+	ctx, cancelFn := context.WithCancel(c.ctx)
 	req := &proto.Query{
 		Type:			proto.Query_QueryType(query.Type),
 		Expression:	query.Expression,
 		Offset:		query.Offset,
 	}
-
-	ctx, cancelFn := context.WithCancel(c.ctx)
 	stream, err := c.cli.Search(ctx, req)
 	if err != nil {
 		cancelFn()
 		return nil, err
 	}
 
-	return &scoreIterator{stream: stream, cancelFn: cancelFn}, nil
+	// Read the result count.
+	res, err := stream.Recv()
+	if err != nil {
+		cancelFn()
+		return nil, err
+	} else if res.GetScore() != nil {
+		cancelFn()
+		return nil, xerrors.Errorf("expected server to report the result count before sending any scores")
+	}
+
+	return &scoreIterator{stream: stream, totalCount: res.GetScoreCount(), cancelFn: cancelFn}, nil
 }
 
 type scoreIterator struct {
-	stream 	proto.ScoreStore_SearchClient
-	next		*ss.Score
-	lastErr	error
+	stream 		proto.ScoreStore_SearchClient
+	totalCount	uint64
+	next			*ss.Score
+	lastErr		error
 
 	// A function to cancel the context used to perform the streaming RPC.
 	// It allows us to abort server-streaming calls from the client side.
@@ -98,9 +115,16 @@ func (it *scoreIterator) Next() bool {
 		return false
 	}
 
+	score := res.GetScore()
+	if score == nil {
+		it.cancelFn()
+		it.lastErr = xerrors.Errorf("received nil score in search result list")
+		return false
+	}
+
 	// Make necessary conversions from proto formats.
 	value := new(big.Float)
-	value, ok := value.SetString(res.Value)
+	value, ok := value.SetString(score.Value)
 	if !ok {
 		it.lastErr = xerrors.New("invalid bigint SetString")
 		it.cancelFn()
@@ -108,8 +132,8 @@ func (it *scoreIterator) Next() bool {
 	}
 
 	it.next = &ss.Score{
-		Wallet:	res.Wallet,
-		Scorer:	res.Scorer,
+		Wallet:	score.Wallet,
+		Scorer:	score.Scorer,
 		Value:	value,
 	}
 	return true
@@ -121,6 +145,9 @@ func (it *scoreIterator) Error() error { return it.lastErr }
 // Returns the currently fetched score.
 func (it *scoreIterator) Score() *ss.Score { return it.next }
 
+// Returns the total count of results.
+func (it *scoreIterator) TotalCount() uint64 { return it.totalCount }
+
 // Releases any objects associated with the iterator.
 func (it *scoreIterator) Close() error {
 	it.cancelFn()
@@ -129,6 +156,7 @@ func (it *scoreIterator) Close() error {
 
 type scorerIterator struct {
 	stream 	proto.ScoreStore_ScorersClient
+	totalCount	uint64
 	next		*ss.Scorer
 	lastErr	error
 
@@ -149,8 +177,15 @@ func (it *scorerIterator) Next() bool {
 		return false
 	}
 
+	scorer := res.GetScorer()
+	if scorer == nil {
+		it.cancelFn()
+		it.lastErr = xerrors.Errorf("received nil scorer in scorers response list")
+		return false
+	}
+
 	it.next = &ss.Scorer{
-		Name: res.Name,
+		Name: scorer.Name,
 	}
 	return true
 }
@@ -160,6 +195,9 @@ func (it *scorerIterator) Error() error { return it.lastErr }
 
 // Returns the currently fetched scorer.
 func (it *scorerIterator) Scorer() *ss.Scorer { return it.next }
+
+// Returns the total count of results.
+func (it *scorerIterator) TotalCount() uint64 { return it.totalCount }
 
 // Releases any objects associated with the iterator.
 func (it *scorerIterator) Close() error {

@@ -13,10 +13,14 @@ service ScoreStore {
 	rpc UpsertScorer(Scorer) returns (google.protobuf.Empty);
 
 	// Streams back all scorers.
-	rpc Scorers(google.protobuf.Empty) returns (stream Scorer);
+	// The first response will include the total result count while all subsequent responses
+	// will include scorers.
+	rpc Scorers(google.protobuf.Empty) returns (stream ScorersResponse);
 
 	// Search the ScoreStore by a particular query and stream the scores back to the client.
-	rpc Search(Query) returns (stream Score);
+	// The first response will include the total result count while all subsequent responses
+	// will include scores from the resultset.
+	rpc Search(Query) returns (stream SearchResponse);
 }
 
 // The value that a scorer outputs for a wallet at a given time.
@@ -39,4 +43,21 @@ message Query {
 	QueryType type		= 1;
 	string expression = 2;
 	uint64 offset     = 3;
+}
+
+// ScorersResponse contains either the total count of scorers or a single scorer.
+message ScorersResponse {
+	oneof result {
+		uint64	scorer_count = 1;
+		Scorer	scorer = 2;
+	}
+}
+
+// SearchResponse contains either the total count of search results or a single score
+// from the result set.
+message SearchResponse {
+	oneof result {
+		uint64	score_count = 1;
+		Score		score = 2;
+	}
 }

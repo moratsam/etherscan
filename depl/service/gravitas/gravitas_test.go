@@ -21,6 +21,7 @@ var _ = gc.Suite(new(ConfigTestSuite))
 var _ = gc.Suite(new(GravitasTestSuite))
 
 type ConfigTestSuite struct{}
+type GravitasTestSuite struct{}
 
 func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 	ctrl := gomock.NewController(c)
@@ -28,7 +29,7 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 
 	origCfg := Config{
 		GraphAPI:          mocks.NewMockGraphAPI(ctrl),
-		ScoreScoreAPI:          mocks.NewMockScoreScoreAPI(ctrl),
+		ScoreStoreAPI:          mocks.NewMockScoreStoreAPI(ctrl),
 		PartitionDetector: partition.Fixed{},
 		ComputeWorkers:    4,
 		UpdateInterval:    time.Minute,
@@ -44,7 +45,7 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*graph API has not been provided.*")
 
 	cfg = origCfg
-	cfg.ScoreScoreAPI = nil
+	cfg.ScoreStoreAPI = nil
 	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*scorestore API has not been provided.*")
 
 	cfg = origCfg
@@ -60,19 +61,17 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 	c.Assert(cfg.validate(), gc.ErrorMatches, "(?ms).*invalid value for update interval.*")
 }
 
-type GravitasTestSuite struct{}
-
 func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	ctrl := gomock.NewController(c)
 	defer ctrl.Finish()
 
 	mockGraph := mocks.NewMockGraphAPI(ctrl)
-	mockScoreScore := mocks.NewMockScoreScoreAPI(ctrl)
+	mockScoreStore := mocks.NewMockScoreStoreAPI(ctrl)
 	clk := testclock.NewClock(time.Now())
 
 	cfg := Config{
 		GraphAPI:        		mockGraph,
-		ScoreScoreAPI:			mockScoreScore,
+		ScoreStoreAPI:			mockScoreStore,
 		PartitionDetector:	partition.Fixed{Partition: 0, NumPartitions: 1},
 		Clock:           		clk,
 		ComputeWorkers:  		1,
@@ -132,8 +131,8 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 		Scorer:	"balance_eth",
 		Value:	big.NewFloat(1),
 	}
-	mockScoreScore.EXPECT().UpsertScore(score1)
-	mockScoreScore.EXPECT().UpsertScore(score2)
+	mockScoreStore.EXPECT().UpsertScore(score1)
+	mockScoreStore.EXPECT().UpsertScore(score2)
 
 	go func() {
 		// Wait until the main loop calls time.After (or timeout if
@@ -160,7 +159,7 @@ func (s *GravitasTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
 
 	cfg := Config{
 		GraphAPI:          mocks.NewMockGraphAPI(ctrl),
-		ScoreScoreAPI:          mocks.NewMockScoreScoreAPI(ctrl),
+		ScoreStoreAPI:          mocks.NewMockScoreStoreAPI(ctrl),
 		PartitionDetector: partition.Fixed{Partition: 1, NumPartitions: 2},
 		Clock:             clk,
 		ComputeWorkers:    1,

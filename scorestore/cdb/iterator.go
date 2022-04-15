@@ -14,6 +14,7 @@ import (
 // scoreIterator is a scorestore.ScoreIterator implementation for the cbd scorestore.
 type scoreIterator struct {
 	rows				*sql.Rows
+	totalRows		uint64
 	lastErr			error
 	latchedScore	*scorestore.Score
 }
@@ -58,10 +59,15 @@ func (i *scoreIterator) Score() *scorestore.Score {
 	return i.latchedScore
 }
 
+func (i *scoreIterator) TotalCount() uint64 {
+	return i.totalRows
+}
+
 
 // scorerIterator is a scorestore.ScorerIterator implementation for the cbd scorestore.
 type scorerIterator struct {
 	rows				*sql.Rows
+	totalRows		uint64
 	lastErr			error
 	latchedScorer	*scorestore.Scorer
 }
@@ -95,6 +101,10 @@ func (i *scorerIterator) Close() error {
 
 func (i *scorerIterator) Scorer() *scorestore.Scorer {
 	return i.latchedScorer
+}
+
+func (i *scorerIterator) TotalCount() uint64 {
+	return i.totalRows
 }
 
 

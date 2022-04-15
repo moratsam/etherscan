@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env cockroachdb deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-cdb-migrations tags test 
+.PHONY: check-cdb-env cdb-connect cdb-start deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run run-cdb-migrations tags test 
 
 define dsn_missing_error
 
@@ -31,7 +31,10 @@ ifndef CDB_DSN
 	$(error ${dsn_missing_error})
 endif
 
-cockroachdb:
+cdb-connect:
+	@psql postgresql://root@127.0.0.1:26257?sslmode=disable
+
+cdb-start:
 	@cockroach start-single-node  --store /usr/local/cockroach/cockroach-data/ --insecure --advertise-addr 127.0.0.1:26257 &
 	@sleep 3
 	@cockroach sql --insecure -e 'create database etherscan;'
@@ -128,6 +131,9 @@ push:
 	@docker push ${PREFIX}${CDB_IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
 	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:${SHA}"
 	@docker push ${PREFIX}${CDB_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
+
+run:
+	@go run depl/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "6m" --frontend-listen-addr ":55488"
 
 
 run-cdb-migrations: migrate-check-deps check-cdb-env

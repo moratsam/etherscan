@@ -19,6 +19,7 @@ import (
 	"github.com/moratsam/etherscan/depl/partition"
 	"github.com/moratsam/etherscan/depl/service"
 	"github.com/moratsam/etherscan/depl/service/blockinserter"
+	"github.com/moratsam/etherscan/depl/service/frontend"
 	"github.com/moratsam/etherscan/depl/service/gravitas"
 	"github.com/moratsam/etherscan/depl/service/scanner"
 	"github.com/moratsam/etherscan/ethclient"
@@ -82,16 +83,24 @@ func runMain(logger *logrus.Entry) error {
 func setupServices(logger *logrus.Entry) (service.Group, error) {
 	var (
 		blockInserterCfg	blockinserter.Config
+		frontendCfg			frontend.Config
 		gravitasCfg			gravitas.Config
 		scannerCfg			scanner.Config
 	)
 
+	// frontend
+	flag.StringVar(&frontendCfg.ListenAddr, "frontend-listen-addr", ":8080", "The address to listen for incoming front-end requests")
+	flag.IntVar(&frontendCfg.ResultsPerPage, "frontend-results-per-page", 30, "The number of entries for each search result page")
+
+	// gravitas
 	flag.IntVar(&gravitasCfg.ComputeWorkers, "gravitas-num-workers", runtime.NumCPU(), "The number of workers to use for calculating gravitas scores (defaults to number of CPUs")
 	flag.DurationVar(&gravitasCfg.UpdateInterval, "gravitas-update-interval", 1*time.Minute, "The time between subsequent gravitas score updates (defaults to 3 hours)")
 
-	partitionDetMode := flag.String("partition-detection-mode", "single", "The partition detection mode to use. Supported values are 'dns=HEADLESS_SERVICE_NAME' (k8s) and 'single' (local dev mode)")
-
+	// scanner
 	flag.IntVar(&scannerCfg.FetchWorkers, "scanner-num-workers", runtime.NumCPU(), "The maximum number of workers to use for scanning eth blocks (defaults to number of CPUs)")
+
+	
+	partitionDetMode := flag.String("partition-detection-mode", "single", "The partition detection mode to use. Supported values are 'dns=HEADLESS_SERVICE_NAME' (k8s) and 'single' (local dev mode)")
 
 	scoreStoreURI := flag.String("score-store-uri", "in-memory://", "The URI for connecting to the scorestore (supported URIs: in-memory://, postgresql://user@host:26257/etherscan?sslmode=disable) (defaults to in-memory)")
 
@@ -139,8 +148,16 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 		return nil, err
 	}
 
+	frontendCfg.ScoreStoreAPI	= scoreStore
+	frontendCfg.Logger			= logger.WithField("service", "front-end")
+	if svc, err = frontend.NewService(frontendCfg); err == nil {
+		svcGroup = append(svcGroup, svc)
+	} else {
+		return nil, err
+	}
+
 	gravitasCfg.GraphAPI 			= txGraph
-	gravitasCfg.ScoreScoreAPI		= scoreStore
+	gravitasCfg.ScoreStoreAPI		= scoreStore
 	gravitasCfg.PartitionDetector	= partDet
 	gravitasCfg.Logger				= logger.WithField("service", "gravitas-calculator")
 	if svc, err = gravitas.NewService(gravitasCfg); err == nil {
@@ -168,6 +185,7 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 type scoreStore interface {
 	UpsertScore(score *ss.Score) error
 	UpsertScorer(scorer *ss.Scorer) error
+	Search(query ss.Query) (ss.ScoreIterator, error)
 }
 
 func getScoreStore(scoreStoreURI string, logger *logrus.Entry) (scoreStore, error) {

@@ -38,6 +38,9 @@ func (i *scoreIterator) Score() *scorestore.Score {
 	return score
 }
 
+func (i *scoreIterator) TotalCount() uint64 {
+	return uint64(len(i.scores))
+}
 
 // scorerIterator is a scorestore.ScorerIterator implementation for the in-memory scorestore.
 type scorerIterator struct {
@@ -72,3 +75,8 @@ func (i *scorerIterator) Scorer() *scorestore.Scorer {
 	*scorer = *i.scorers[i.curIndex-1]
 	return scorer
 }
+
+func (i *scorerIterator) TotalCount() uint64 {
+	return uint64(len(i.scorers))
+}
+

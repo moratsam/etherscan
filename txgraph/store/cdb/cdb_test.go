@@ -7,7 +7,7 @@ import (
 
 	gc "gopkg.in/check.v1"
 
-	"github.com/moratsam/etherscan/txgraph/graph/graphtest"
+	"github.com/moratsam/etherscan/txgraph/graph/test"
 )
 
 var _ = gc.Suite(new(CDBGraphTestSuite))
@@ -15,7 +15,7 @@ var _ = gc.Suite(new(CDBGraphTestSuite))
 func Test(t *testing.T) { gc.TestingT(t) }
 
 type CDBGraphTestSuite struct {
-	graphtest.SuiteBase
+	test.SuiteBase
 	db *sql.DB
 }
 

@@ -5,7 +5,7 @@ import (
 
 	gc "gopkg.in/check.v1"
 
-	"github.com/moratsam/etherscan/txgraph/graph/graphtest"
+	"github.com/moratsam/etherscan/txgraph/graph/test"
 )
 
 var _ = gc.Suite(new(InMemoryGraphTestSuite))
@@ -13,7 +13,7 @@ var _ = gc.Suite(new(InMemoryGraphTestSuite))
 func Test(t *testing.T) { gc.TestingT(t) }
 
 type InMemoryGraphTestSuite struct {
-	graphtest.SuiteBase
+	test.SuiteBase
 }
 
 func (s *InMemoryGraphTestSuite) SetUpTest(c *gc.C) {

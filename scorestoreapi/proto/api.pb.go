@@ -224,38 +224,225 @@ func (m *Query) GetOffset() uint64 {
 	return 0
 }
 
+// ScorersResponse contains either the total count of scorers or a single scorer.
+type ScorersResponse struct {
+	// Types that are valid to be assigned to Result:
+	//	*ScorersResponse_ScorerCount
+	//	*ScorersResponse_Scorer
+	Result               isScorersResponse_Result `protobuf_oneof:"result"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
+}
+
+func (m *ScorersResponse) Reset()         { *m = ScorersResponse{} }
+func (m *ScorersResponse) String() string { return proto.CompactTextString(m) }
+func (*ScorersResponse) ProtoMessage()    {}
+func (*ScorersResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_64f4db090e7460d1, []int{3}
+}
+func (m *ScorersResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ScorersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ScorersResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ScorersResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ScorersResponse.Merge(m, src)
+}
+func (m *ScorersResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ScorersResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ScorersResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ScorersResponse proto.InternalMessageInfo
+
+type isScorersResponse_Result interface {
+	isScorersResponse_Result()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type ScorersResponse_ScorerCount struct {
+	ScorerCount uint64 `protobuf:"varint,1,opt,name=scorer_count,json=scorerCount,proto3,oneof" json:"scorer_count,omitempty"`
+}
+type ScorersResponse_Scorer struct {
+	Scorer *Scorer `protobuf:"bytes,2,opt,name=scorer,proto3,oneof" json:"scorer,omitempty"`
+}
+
+func (*ScorersResponse_ScorerCount) isScorersResponse_Result() {}
+func (*ScorersResponse_Scorer) isScorersResponse_Result()      {}
+
+func (m *ScorersResponse) GetResult() isScorersResponse_Result {
+	if m != nil {
+		return m.Result
+	}
+	return nil
+}
+
+func (m *ScorersResponse) GetScorerCount() uint64 {
+	if x, ok := m.GetResult().(*ScorersResponse_ScorerCount); ok {
+		return x.ScorerCount
+	}
+	return 0
+}
+
+func (m *ScorersResponse) GetScorer() *Scorer {
+	if x, ok := m.GetResult().(*ScorersResponse_Scorer); ok {
+		return x.Scorer
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ScorersResponse) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*ScorersResponse_ScorerCount)(nil),
+		(*ScorersResponse_Scorer)(nil),
+	}
+}
+
+// SearchResponse contains either the total count of search results or a single score
+// from the result set.
+type SearchResponse struct {
+	// Types that are valid to be assigned to Result:
+	//	*SearchResponse_ScoreCount
+	//	*SearchResponse_Score
+	Result               isSearchResponse_Result `protobuf_oneof:"result"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *SearchResponse) Reset()         { *m = SearchResponse{} }
+func (m *SearchResponse) String() string { return proto.CompactTextString(m) }
+func (*SearchResponse) ProtoMessage()    {}
+func (*SearchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_64f4db090e7460d1, []int{4}
+}
+func (m *SearchResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SearchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SearchResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SearchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SearchResponse.Merge(m, src)
+}
+func (m *SearchResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *SearchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SearchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SearchResponse proto.InternalMessageInfo
+
+type isSearchResponse_Result interface {
+	isSearchResponse_Result()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type SearchResponse_ScoreCount struct {
+	ScoreCount uint64 `protobuf:"varint,1,opt,name=score_count,json=scoreCount,proto3,oneof" json:"score_count,omitempty"`
+}
+type SearchResponse_Score struct {
+	Score *Score `protobuf:"bytes,2,opt,name=score,proto3,oneof" json:"score,omitempty"`
+}
+
+func (*SearchResponse_ScoreCount) isSearchResponse_Result() {}
+func (*SearchResponse_Score) isSearchResponse_Result()      {}
+
+func (m *SearchResponse) GetResult() isSearchResponse_Result {
+	if m != nil {
+		return m.Result
+	}
+	return nil
+}
+
+func (m *SearchResponse) GetScoreCount() uint64 {
+	if x, ok := m.GetResult().(*SearchResponse_ScoreCount); ok {
+		return x.ScoreCount
+	}
+	return 0
+}
+
+func (m *SearchResponse) GetScore() *Score {
+	if x, ok := m.GetResult().(*SearchResponse_Score); ok {
+		return x.Score
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*SearchResponse) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*SearchResponse_ScoreCount)(nil),
+		(*SearchResponse_Score)(nil),
+	}
+}
+
 func init() {
 	proto.RegisterEnum("proto.Query_QueryType", Query_QueryType_name, Query_QueryType_value)
 	proto.RegisterType((*Score)(nil), "proto.Score")
 	proto.RegisterType((*Scorer)(nil), "proto.Scorer")
 	proto.RegisterType((*Query)(nil), "proto.Query")
+	proto.RegisterType((*ScorersResponse)(nil), "proto.ScorersResponse")
+	proto.RegisterType((*SearchResponse)(nil), "proto.SearchResponse")
 }
 
 func init() { proto.RegisterFile("scorestoreapi/proto/api.proto", fileDescriptor_64f4db090e7460d1) }
 
 var fileDescriptor_64f4db090e7460d1 = []byte{
-	// 333 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0xc1, 0x4e, 0xc2, 0x40,
-	0x10, 0x86, 0x59, 0xa5, 0x35, 0x8c, 0x68, 0xc8, 0xc6, 0x20, 0xa9, 0xda, 0x98, 0x1e, 0x8c, 0xf1,
-	0x50, 0x08, 0xc4, 0x17, 0xd0, 0x70, 0x34, 0xc6, 0x56, 0x1f, 0x60, 0x21, 0x03, 0x92, 0x14, 0x76,
-	0xb3, 0xbb, 0xa8, 0xbd, 0xfb, 0x10, 0x3e, 0x92, 0x47, 0x0f, 0x3e, 0x80, 0xc1, 0x17, 0x31, 0xdd,
-	0xa9, 0xa4, 0x1c, 0xb8, 0xb4, 0xf3, 0xcf, 0xfc, 0x33, 0xfd, 0xfa, 0xc3, 0x99, 0x19, 0x4b, 0x8d,
-	0xc6, 0x4a, 0x8d, 0x42, 0xcd, 0xba, 0x4a, 0x4b, 0x2b, 0xbb, 0x42, 0xcd, 0x62, 0x57, 0x71, 0xcf,
-	0xbd, 0x82, 0x93, 0xa9, 0x94, 0xd3, 0x0c, 0x69, 0x3c, 0x5a, 0x4e, 0xba, 0x38, 0x57, 0x36, 0x27,
-	0x4f, 0x74, 0x07, 0x5e, 0x5a, 0x1c, 0xe1, 0x6d, 0xf0, 0x5f, 0x45, 0x96, 0xa1, 0xed, 0xb0, 0x73,
-	0x76, 0xd9, 0x48, 0x4a, 0x55, 0xf4, 0xdd, 0x57, 0x74, 0x67, 0x87, 0xfa, 0xa4, 0xf8, 0x11, 0x78,
-	0x2f, 0x22, 0x5b, 0x62, 0x67, 0xd7, 0xb5, 0x49, 0x44, 0xa7, 0xe0, 0xa7, 0x34, 0xe7, 0x50, 0x5f,
-	0x88, 0x39, 0x96, 0xd7, 0x5c, 0x1d, 0xbd, 0x33, 0xf0, 0x1e, 0x96, 0xa8, 0x73, 0x7e, 0x05, 0x75,
-	0x9b, 0x2b, 0x9a, 0x1e, 0xf6, 0xdb, 0x04, 0x13, 0xbb, 0x19, 0x3d, 0x1f, 0x73, 0x85, 0x89, 0xf3,
-	0xf0, 0x10, 0x00, 0xdf, 0x94, 0x46, 0x63, 0x66, 0x72, 0x51, 0x52, 0x54, 0x3a, 0x05, 0xa1, 0x9c,
-	0x4c, 0x0c, 0x5a, 0x87, 0x52, 0x4f, 0x4a, 0x15, 0x1d, 0x43, 0x63, 0x7d, 0x8a, 0x03, 0xf8, 0xe9,
-	0xed, 0x7d, 0x32, 0x4c, 0x5a, 0xb5, 0xfe, 0x37, 0x03, 0x70, 0x94, 0x69, 0x91, 0x1c, 0x1f, 0xc0,
-	0xfe, 0x93, 0x32, 0xa8, 0x2d, 0x05, 0xd1, 0x2c, 0x61, 0x9c, 0x0a, 0xda, 0x31, 0xa5, 0x17, 0xff,
-	0xa7, 0x17, 0x0f, 0x8b, 0xf4, 0xf8, 0x35, 0x34, 0x2b, 0x4b, 0x9a, 0x1f, 0x54, 0xb7, 0xf4, 0xd6,
-	0xb5, 0x3e, 0xec, 0x91, 0xc3, 0xf0, 0x2d, 0x96, 0x60, 0xf3, 0x52, 0x8f, 0xf1, 0x0b, 0xf0, 0x53,
-	0x14, 0x7a, 0xfc, 0xbc, 0x46, 0x73, 0xbf, 0x15, 0x6c, 0x80, 0xf6, 0xd8, 0x4d, 0xeb, 0x73, 0x15,
-	0xb2, 0xaf, 0x55, 0xc8, 0x7e, 0x56, 0x21, 0xfb, 0xf8, 0x0d, 0x6b, 0x23, 0xdf, 0x19, 0x06, 0x7f,
-	0x01, 0x00, 0x00, 0xff, 0xff, 0x5a, 0xe3, 0x9c, 0x08, 0x28, 0x02, 0x00, 0x00,
+	// 425 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x52, 0xcd, 0x8a, 0xd4, 0x40,
+	0x10, 0x4e, 0xeb, 0x24, 0xba, 0x35, 0xe3, 0xba, 0x34, 0x3a, 0x0e, 0x51, 0x83, 0x46, 0x41, 0xf1,
+	0x90, 0x2c, 0xb3, 0x78, 0xf2, 0xb6, 0xcb, 0xc2, 0x5c, 0x44, 0xec, 0xe8, 0x59, 0xb2, 0xa1, 0x66,
+	0x0d, 0x64, 0xd3, 0x4d, 0x77, 0x47, 0xcd, 0xdd, 0x87, 0xf0, 0x91, 0x3c, 0xfa, 0x08, 0x32, 0x82,
+	0xcf, 0x21, 0xe9, 0xca, 0xc4, 0xc9, 0xc2, 0x5c, 0x92, 0xae, 0xaf, 0x7e, 0xbe, 0xaf, 0xbf, 0x2e,
+	0x78, 0x6c, 0x0a, 0xa9, 0xd1, 0x58, 0xa9, 0x31, 0x57, 0x65, 0xaa, 0xb4, 0xb4, 0x32, 0xcd, 0x55,
+	0x99, 0xb8, 0x13, 0xf7, 0xdd, 0x2f, 0x7c, 0x78, 0x29, 0xe5, 0x65, 0x85, 0x94, 0xbe, 0x68, 0xd6,
+	0x29, 0x5e, 0x29, 0xdb, 0x52, 0x4d, 0xfc, 0x16, 0xfc, 0xac, 0x1b, 0xc2, 0xe7, 0x10, 0x7c, 0xcd,
+	0xab, 0x0a, 0xed, 0x82, 0x3d, 0x61, 0x2f, 0x0f, 0x44, 0x1f, 0x75, 0xb8, 0x63, 0xd1, 0x8b, 0x1b,
+	0x84, 0x53, 0xc4, 0xef, 0x81, 0xff, 0x25, 0xaf, 0x1a, 0x5c, 0xdc, 0x74, 0x30, 0x05, 0xf1, 0x23,
+	0x08, 0x32, 0xca, 0x73, 0x98, 0xd4, 0xf9, 0x15, 0xf6, 0xd3, 0xdc, 0x39, 0xfe, 0xce, 0xc0, 0x7f,
+	0xdf, 0xa0, 0x6e, 0xf9, 0x2b, 0x98, 0xd8, 0x56, 0x51, 0xf6, 0x70, 0x39, 0x27, 0x31, 0x89, 0xcb,
+	0xd1, 0xf7, 0x43, 0xab, 0x50, 0xb8, 0x1a, 0x1e, 0x01, 0xe0, 0x37, 0xa5, 0xd1, 0x98, 0x52, 0xd6,
+	0xbd, 0x8a, 0x1d, 0xa4, 0x53, 0x28, 0xd7, 0x6b, 0x83, 0xd6, 0x49, 0x99, 0x88, 0x3e, 0x8a, 0x1f,
+	0xc0, 0xc1, 0x30, 0x8a, 0x03, 0x04, 0xd9, 0xd9, 0x3b, 0x71, 0x2e, 0x8e, 0xbc, 0xb8, 0x84, 0xbb,
+	0x24, 0xd2, 0x08, 0x34, 0x4a, 0xd6, 0x06, 0xf9, 0x33, 0x98, 0xd1, 0xbd, 0x3e, 0x15, 0xb2, 0xa9,
+	0xc9, 0x83, 0xc9, 0xca, 0x13, 0x53, 0x42, 0xcf, 0x3a, 0x90, 0xbf, 0x18, 0x59, 0x31, 0x5d, 0xde,
+	0xe9, 0x65, 0xd3, 0xb0, 0x95, 0xb7, 0xf5, 0xe6, 0xf4, 0x36, 0x04, 0x1a, 0x4d, 0x53, 0xd9, 0xb8,
+	0x80, 0xc3, 0x0c, 0x73, 0x5d, 0x7c, 0x1e, 0x98, 0x9e, 0x02, 0xcd, 0xbc, 0x46, 0x04, 0x0e, 0x24,
+	0x9e, 0xe7, 0xe0, 0xbb, 0xa8, 0xa7, 0x99, 0xed, 0xd2, 0xac, 0x3c, 0x41, 0xc9, 0xff, 0x24, 0xcb,
+	0xbf, 0x0c, 0xc0, 0x25, 0xb3, 0x6e, 0x13, 0xf8, 0x09, 0x4c, 0x3f, 0x2a, 0x83, 0xda, 0xd2, 0xc3,
+	0x8e, 0xda, 0xc3, 0x79, 0x42, 0xdb, 0x90, 0x6c, 0xb7, 0x21, 0x39, 0xef, 0xb6, 0x81, 0xbf, 0x86,
+	0xd9, 0x4e, 0x93, 0xe6, 0xe3, 0xbb, 0xed, 0x6d, 0x7b, 0x03, 0xb7, 0x7a, 0x2b, 0xf9, 0x9e, 0x92,
+	0x70, 0x3e, 0x9a, 0x34, 0x58, 0x7e, 0xcc, 0x78, 0x0a, 0x01, 0x99, 0x33, 0x68, 0x74, 0xef, 0x15,
+	0xde, 0xdf, 0x76, 0x8c, 0x9c, 0x3b, 0x66, 0xa7, 0x47, 0x3f, 0x37, 0x11, 0xfb, 0xb5, 0x89, 0xd8,
+	0xef, 0x4d, 0xc4, 0x7e, 0xfc, 0x89, 0xbc, 0x8b, 0xc0, 0x55, 0x9e, 0xfc, 0x0b, 0x00, 0x00, 0xff,
+	0xff, 0xc5, 0x2c, 0xbb, 0x46, 0x0a, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -271,13 +458,17 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ScoreStoreClient interface {
 	// Upsert a score.
-	// On conflict of (wallet, scorer), the timestamp and value will be updated.
+	// On conflict of (wallet, scorer), the value will be updated.
 	UpsertScore(ctx context.Context, in *Score, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Upsert a scorer.
 	UpsertScorer(ctx context.Context, in *Scorer, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Streams back all scorers.
+	// The first response will include the total result count while all subsequent responses
+	// will include scorers.
 	Scorers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (ScoreStore_ScorersClient, error)
 	// Search the ScoreStore by a particular query and stream the scores back to the client.
+	// The first response will include the total result count while all subsequent responses
+	// will include scores from the resultset.
 	Search(ctx context.Context, in *Query, opts ...grpc.CallOption) (ScoreStore_SearchClient, error)
 }
 
@@ -323,7 +514,7 @@ func (c *scoreStoreClient) Scorers(ctx context.Context, in *emptypb.Empty, opts 
 }
 
 type ScoreStore_ScorersClient interface {
-	Recv() (*Scorer, error)
+	Recv() (*ScorersResponse, error)
 	grpc.ClientStream
 }
 
@@ -331,8 +522,8 @@ type scoreStoreScorersClient struct {
 	grpc.ClientStream
 }
 
-func (x *scoreStoreScorersClient) Recv() (*Scorer, error) {
-	m := new(Scorer)
+func (x *scoreStoreScorersClient) Recv() (*ScorersResponse, error) {
+	m := new(ScorersResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -355,7 +546,7 @@ func (c *scoreStoreClient) Search(ctx context.Context, in *Query, opts ...grpc.C
 }
 
 type ScoreStore_SearchClient interface {
-	Recv() (*Score, error)
+	Recv() (*SearchResponse, error)
 	grpc.ClientStream
 }
 
@@ -363,8 +554,8 @@ type scoreStoreSearchClient struct {
 	grpc.ClientStream
 }
 
-func (x *scoreStoreSearchClient) Recv() (*Score, error) {
-	m := new(Score)
+func (x *scoreStoreSearchClient) Recv() (*SearchResponse, error) {
+	m := new(SearchResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -374,13 +565,17 @@ func (x *scoreStoreSearchClient) Recv() (*Score, error) {
 // ScoreStoreServer is the server API for ScoreStore service.
 type ScoreStoreServer interface {
 	// Upsert a score.
-	// On conflict of (wallet, scorer), the timestamp and value will be updated.
+	// On conflict of (wallet, scorer), the value will be updated.
 	UpsertScore(context.Context, *Score) (*emptypb.Empty, error)
 	// Upsert a scorer.
 	UpsertScorer(context.Context, *Scorer) (*emptypb.Empty, error)
 	// Streams back all scorers.
+	// The first response will include the total result count while all subsequent responses
+	// will include scorers.
 	Scorers(*emptypb.Empty, ScoreStore_ScorersServer) error
 	// Search the ScoreStore by a particular query and stream the scores back to the client.
+	// The first response will include the total result count while all subsequent responses
+	// will include scores from the resultset.
 	Search(*Query, ScoreStore_SearchServer) error
 }
 
@@ -450,7 +645,7 @@ func _ScoreStore_Scorers_Handler(srv interface{}, stream grpc.ServerStream) erro
 }
 
 type ScoreStore_ScorersServer interface {
-	Send(*Scorer) error
+	Send(*ScorersResponse) error
 	grpc.ServerStream
 }
 
@@ -458,7 +653,7 @@ type scoreStoreScorersServer struct {
 	grpc.ServerStream
 }
 
-func (x *scoreStoreScorersServer) Send(m *Scorer) error {
+func (x *scoreStoreScorersServer) Send(m *ScorersResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -471,7 +666,7 @@ func _ScoreStore_Search_Handler(srv interface{}, stream grpc.ServerStream) error
 }
 
 type ScoreStore_SearchServer interface {
-	Send(*Score) error
+	Send(*SearchResponse) error
 	grpc.ServerStream
 }
 
@@ -479,7 +674,7 @@ type scoreStoreSearchServer struct {
 	grpc.ServerStream
 }
 
-func (x *scoreStoreSearchServer) Send(m *Score) error {
+func (x *scoreStoreSearchServer) Send(m *SearchResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -637,6 +832,144 @@ func (m *Query) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *ScorersResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ScorersResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ScorersResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Result != nil {
+		{
+			size := m.Result.Size()
+			i -= size
+			if _, err := m.Result.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ScorersResponse_ScorerCount) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ScorersResponse_ScorerCount) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i = encodeVarintApi(dAtA, i, uint64(m.ScorerCount))
+	i--
+	dAtA[i] = 0x8
+	return len(dAtA) - i, nil
+}
+func (m *ScorersResponse_Scorer) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ScorersResponse_Scorer) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Scorer != nil {
+		{
+			size, err := m.Scorer.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintApi(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	return len(dAtA) - i, nil
+}
+func (m *SearchResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SearchResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SearchResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Result != nil {
+		{
+			size := m.Result.Size()
+			i -= size
+			if _, err := m.Result.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SearchResponse_ScoreCount) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SearchResponse_ScoreCount) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i = encodeVarintApi(dAtA, i, uint64(m.ScoreCount))
+	i--
+	dAtA[i] = 0x8
+	return len(dAtA) - i, nil
+}
+func (m *SearchResponse_Score) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SearchResponse_Score) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Score != nil {
+		{
+			size, err := m.Score.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintApi(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	return len(dAtA) - i, nil
+}
 func encodeVarintApi(dAtA []byte, offset int, v uint64) int {
 	offset -= sovApi(v)
 	base := offset
@@ -706,6 +1039,79 @@ func (m *Query) Size() (n int) {
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ScorersResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Result != nil {
+		n += m.Result.Size()
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ScorersResponse_ScorerCount) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 1 + sovApi(uint64(m.ScorerCount))
+	return n
+}
+func (m *ScorersResponse_Scorer) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Scorer != nil {
+		l = m.Scorer.Size()
+		n += 1 + l + sovApi(uint64(l))
+	}
+	return n
+}
+func (m *SearchResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Result != nil {
+		n += m.Result.Size()
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *SearchResponse_ScoreCount) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 1 + sovApi(uint64(m.ScoreCount))
+	return n
+}
+func (m *SearchResponse_Score) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Score != nil {
+		l = m.Score.Size()
+		n += 1 + l + sovApi(uint64(l))
 	}
 	return n
 }
@@ -1045,6 +1451,218 @@ func (m *Query) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ScorersResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ScorersResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ScorersResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ScorerCount", wireType)
+			}
+			var v uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Result = &ScorersResponse_ScorerCount{v}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Scorer", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &Scorer{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Result = &ScorersResponse_Scorer{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SearchResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SearchResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SearchResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ScoreCount", wireType)
+			}
+			var v uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Result = &SearchResponse_ScoreCount{v}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Score", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &Score{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Result = &SearchResponse_Score{v}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApi(dAtA[iNdEx:])

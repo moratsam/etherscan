@@ -64,6 +64,9 @@ type ScoreIterator interface {
 
 	// Score returns the current score from the resuls set.
 	Score() *Score
+
+	// TotalCount returns the approximate number of search results.
+	TotalCount() uint64
 }
 
 // ScorerIterator is implemented by objects that can iterate scorers.
@@ -80,4 +83,7 @@ type ScorerIterator interface {
 
 	// Scorer returns the current scorer.
 	Scorer() *Scorer
+
+	// TotalCount returns the approximate number of scorers.
+	TotalCount() uint64
 }

@@ -94,7 +94,7 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 
 	// gravitas
 	flag.IntVar(&gravitasCfg.ComputeWorkers, "gravitas-num-workers", runtime.NumCPU(), "The number of workers to use for calculating gravitas scores (defaults to number of CPUs")
-	flag.DurationVar(&gravitasCfg.UpdateInterval, "gravitas-update-interval", 1*time.Minute, "The time between subsequent gravitas score updates (defaults to 3 hours)")
+	flag.DurationVar(&gravitasCfg.UpdateInterval, "gravitas-update-interval", 1*time.Minute, "The time between subsequent gravitas score updates")
 
 	// scanner
 	flag.IntVar(&scannerCfg.FetchWorkers, "scanner-num-workers", runtime.NumCPU(), "The maximum number of workers to use for scanning eth blocks (defaults to number of CPUs)")
@@ -169,12 +169,12 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	scannerCfg.ETHClient = ethClient
 	scannerCfg.GraphAPI	= txGraph
 	scannerCfg.Logger		= logger.WithField("service", "scanner")
-	/*
-	logger.Warn("SKIPPING scanner service")
-	_ = scannerCfg
-	*/
 	if svc, err = scanner.NewService(scannerCfg); err == nil {
+		logger.Warn("SKIPPING scanner service")
+		_ = svc
+		/*
 		svcGroup = append(svcGroup, svc)
+		*/
 	} else {
 		return nil, err
 	}

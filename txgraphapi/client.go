@@ -88,9 +88,9 @@ func (c *TxGraphClient) UpsertWallets(wallets []*graph.Wallet) error {
 	
 }
 
-func (c *TxGraphClient) WalletTxs(wallet *graph.Wallet) (graph.TxIterator, error) {
+func (c *TxGraphClient) WalletTxs(address string) (graph.TxIterator, error) {
 	req := &proto.Wallet{
-		Address: wallet.Address,
+		Address: address,
 	}
 
 	ctx, cancelFn := context.WithCancel(c.ctx)

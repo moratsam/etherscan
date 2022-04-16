@@ -46,6 +46,7 @@ type Query struct {
 	// The search expression.
 	Expression string
 
+	// TODO offset is not being used when retrieving scores.
 	// The number of search results to skip.
 	Offset uint64
 }

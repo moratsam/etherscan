@@ -132,7 +132,7 @@ func (s *ServerTestSuite) TestInsertTxs(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 
 	// Retrieve transaction from WalletTxs iterators of both wallets.
-	it, err := s.cli.WalletTxs(wallets[0])
+	it, err := s.cli.WalletTxs(wallets[0].Address)
 	c.Assert(err, gc.IsNil)
 	var cnt int
 	for it.Next() {
@@ -147,7 +147,7 @@ func (s *ServerTestSuite) TestInsertTxs(c *gc.C) {
 	c.Assert(it.Error(), gc.IsNil)
 	c.Assert(it.Close(), gc.IsNil)
 
-	it, err = s.cli.WalletTxs(wallets[1])
+	it, err = s.cli.WalletTxs(wallets[1].Address)
 	c.Assert(err, gc.IsNil)
 	cnt = 0
 	for it.Next() {

@@ -13,8 +13,8 @@ RUN GIT_SHA=$(git rev-parse --short HEAD) && \
     CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
     go build -a \
     -ldflags "-extldflags '-static' -w -s -X main.appSha=$GIT_SHA" \
-    -o /go/bin/etherscan-scanner \
-	 github.com/moratsam/etherscan/depl/microservices/scanner
+    -o /go/bin/etherscan-blockinserter \
+	 github.com/moratsam/etherscan/depl/microservices/blockinserter
 
 ########################################################
 # STEP 2 create alpine image with trusted certs
@@ -22,6 +22,6 @@ RUN GIT_SHA=$(git rev-parse --short HEAD) && \
 
 FROM alpine:3.10
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
-COPY --from=builder /go/bin/etherscan-scanner /go/bin/etherscan-scanner
+COPY --from=builder /go/bin/etherscan-blockinserter /go/bin/etherscan-blockinserter
 
-ENTRYPOINT ["/go/bin/etherscan-scanner"]
+ENTRYPOINT ["/go/bin/etherscan-blockinserter"]

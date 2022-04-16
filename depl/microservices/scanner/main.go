@@ -92,6 +92,7 @@ func runMain(appCtx *cli.Context) error {
 	}
 
 	var scannerCfg scanner.Config
+	scannerCfg.FetchWorkers = appCtx.Int("scanner-num-workers")
 	scannerCfg.ETHClient = ethClient
 	scannerCfg.GraphAPI = txGraphAPI
 	scannerCfg.Logger = logger

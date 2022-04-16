@@ -1,0 +1,36 @@
+# Deploy a single instance of the gravitas service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherscan-gravitas-instance
+  namespace: etherscan
+  labels:
+    app: etherscan-gravitas-instance
+spec:
+  selector:
+    matchLabels:
+      app: etherscan-gravitas-instance
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: etherscan-gravitas-instance
+    spec:
+      containers:
+      - name: etherscan-gravitas
+        imagePullPolicy: Always
+        image: localhost:5000/etherscan-gravitas:latest
+        args:
+          - "-gravitas-update-interval=1m"
+          - "-gravitas-num-workers=16"
+          - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
+          - "-score-store-api=etherscan-scorestore.etherscan-data:8080"
+          - "-partition-detection-mode=single"
+        ports:
+        - containerPort: 6060
+          name: pprof
+        resources:
+          limits:
+            cpu: "2"
+          requests:
+            cpu: 100m

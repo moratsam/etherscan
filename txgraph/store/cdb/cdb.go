@@ -67,7 +67,7 @@ func (g *CDBGraph) bulkInsertBlocks(blockNumbers []int) error {
 		valueArgs = append(valueArgs, blockNumber)
 		valueArgs = append(valueArgs, false)
 	}
-	stmt := fmt.Sprintf(`INSERT INTO block("number", processed) VALUES %s`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`INSERT INTO block("number", processed) VALUES %s on conflict ("number") do nothing;`, strings.Join(valueStrings, ","))
 	_, err := g.db.Exec(stmt, valueArgs...)
 	return err
 }

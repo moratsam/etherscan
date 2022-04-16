@@ -1,0 +1,49 @@
+# A service with a cluster IP that serves as a load-balancer for the txgraph.
+apiVersion: v1
+kind: Service
+metadata:
+  name: etherscan-txgraph
+  namespace: etherscan-data
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: grpc
+  selector:
+    app: etherscan-txgraph-instance
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherscan-txgraph-instance
+  namespace: etherscan-data
+  labels:
+    app: etherscan-txgraph-instance
+spec:
+  selector:
+    matchLabels:
+      app: etherscan-txgraph-instance
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: etherscan-txgraph-instance
+        role: data-api
+    spec:
+      containers:
+      - name: etherscan-txgraph
+        imagePullPolicy: Always
+        image: localhost:5000/etherscan-txgraph:latest
+        args:
+          - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
+        ports:
+        - containerPort: 8080
+          name: grpc
+        - containerPort: 6060
+          name: pprof
+        resources:
+          limits:
+            cpu: "1"
+          requests:
+            cpu: 50m

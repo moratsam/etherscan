@@ -53,7 +53,7 @@ func makeApp() *cli.App {
 	app.Version = appSha
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:   "score-score-uri",
+			Name:   "score-store-uri",
 			Value:  "in-memory://",
 			EnvVar: "SCORE_STORE_URI",
 			Usage:  "The URI for connecting to the score store (supported URIs: in-memory://, postgresql://user@host:26257/etherscan?sslmode=disable) Defaults to in-memory",
@@ -80,7 +80,7 @@ func runMain(appCtx *cli.Context) error {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	scoreStore, err := getScoreStore(appCtx.String("score-score-uri"))
+	scoreStore, err := getScoreStore(appCtx.String("score-store-uri"))
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func runMain(appCtx *cli.Context) error {
 
 func getScoreStore(scoreStoreURI string) (ss.ScoreStore, error) {
 	if scoreStoreURI == "" {
-		return nil, xerrors.Errorf("score store URI must be specified with --score-score-uri")
+		return nil, xerrors.Errorf("score store URI must be specified with --score-store-uri")
 	}
 
 	uri, err := url.Parse(scoreStoreURI)

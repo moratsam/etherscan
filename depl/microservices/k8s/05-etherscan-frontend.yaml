@@ -1,0 +1,61 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: etherscan-ingress
+  namespace: etherscan
+spec:
+  defaultBackend:
+    service:
+      name: etherscan-frontend
+      port:
+        number: 80
+---
+# A service with a cluster IP that serves as a load-balancer for the frontend
+# pods. It is exposed outside the cluster via the above ingress resource.
+apiVersion: v1
+kind: Service
+metadata:
+  name: etherscan-frontend
+  namespace: etherscan
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: web
+  selector:
+    app: etherscan-frontend-instance
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherscan-frontend-instance
+  namespace: etherscan
+  labels:
+    app: etherscan-frontend-instance
+spec:
+  selector:
+    matchLabels:
+      app: etherscan-frontend-instance
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: etherscan-frontend-instance
+    spec:
+      containers:
+      - name: etherscan-frontend
+        imagePullPolicy: Always
+        image: localhost:5000/etherscan-frontend:latest
+        args:
+          - "-score-store-api=etherscan-scorestore.etherscan-data:8080"
+        ports:
+        - containerPort: 8080
+          name: www
+        - containerPort: 6060
+          name: pprof
+        resources:
+          limits:
+            cpu: "1"
+          requests:
+            cpu: 50m

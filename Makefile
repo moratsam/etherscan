@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env cdb-connect cdb-start deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-monolith run-cdb-migrations tags test 
+.PHONY: check-cdb-env cdb-connect cdb-start deps docker-build-cdb docker-build-microservices docker-build-monolith docker-build-and-push-microservices docker-build-and-push-monolith docker-push-cdb docker-push-microservices docker-push-monolith docker-run ensure-proto-deps k8s-cdb-connect k8s-microservices-delete k8s-monolith-delete k8s-microservices-deploy k8s-monolith-deploy k8s-monolith-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto run-monolith run-cdb-migrations tags test 
 
 define dsn_missing_error
 
@@ -15,6 +15,7 @@ export dsn_missing_error
 
 CDB_IMAGE = cdb-schema
 MONOLITH_IMAGE = etherscan-monolith
+MICROSERVICES_LIST = etherscan-blockinserter etherscan-frontend etherscan-gravitas etherscan-scanner etherscan-scorestore etherscan-txgraph
 SHA = $(shell git rev-parse --short HEAD)
 
 ifeq ($(origin PRIVATE_REGISTRY),undefined)
@@ -47,19 +48,54 @@ deps:
 		dep ensure;\
 	fi
 
-docker-build:
-	@echo "[docker build] building ${MONOLITH_IMAGE} (tags: ${PREFIX}${MONOLITH_IMAGE}:latest, ${PREFIX}${MONOLITH_IMAGE}:${SHA})"
-	@docker build --file ./depl/monolith/Dockerfile \
-		--tag ${PREFIX}${MONOLITH_IMAGE}:latest \
-		--tag ${PREFIX}${MONOLITH_IMAGE}:${SHA} \
-		. 2>&1 | sed -e "s/^/ | /g"
+docker-build-cdb:
 	@echo "[docker build] building ${CDB_IMAGE} (tags: ${PREFIX}${CDB_IMAGE}:latest, ${PREFIX}${CDB_IMAGE}:${SHA})"
 	@docker build --file ./depl/cdb-schema/Dockerfile \
 		--tag ${PREFIX}${CDB_IMAGE}:latest \
 		--tag ${PREFIX}${CDB_IMAGE}:${SHA} \
 		. 2>&1 | sed -e "s/^/ | /g"
 
-docker-build-and-push: docker-build push
+docker-build-microservices: 
+	for image in $(MICROSERVICES_LIST); do \
+		path=$$(echo $${image} | cut -d '-' -f2); \
+		path=$$(echo "./depl/microservices/$${path}/Dockerfile");\
+		echo "[docker build] building $${image} (tags: ${PREFIX}$${image}:latest, ${PREFIX}$${image}:${SHA}) found at: $${path}"; \
+		docker build --file $${path} \
+			--tag ${PREFIX}$${image}:latest \
+			--tag ${PREFIX}$${image}:${SHA} \
+			. 2>&1 | sed -e "s/^/ | /g" ; \
+	done
+
+docker-build-monolith: docker-build-cdb
+	@echo "[docker build] building ${MONOLITH_IMAGE} (tags: ${PREFIX}${MONOLITH_IMAGE}:latest, ${PREFIX}${MONOLITH_IMAGE}:${SHA})"
+	@docker build --file ./depl/monolith/Dockerfile \
+		--tag ${PREFIX}${MONOLITH_IMAGE}:latest \
+		--tag ${PREFIX}${MONOLITH_IMAGE}:${SHA} \
+		. 2>&1 | sed -e "s/^/ | /g"
+
+docker-build-and-push-microservices: docker-build-microservices docker-push-microservices
+
+docker-build-and-push-monolith: docker-build-monolith docker-push-monolith
+
+docker-push-cdb:
+	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:latest"
+	@docker push ${PREFIX}${CDB_IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:${SHA}"
+	@docker push ${PREFIX}${CDB_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
+
+docker-push-microservices: docker-push-cdb
+	for image in $(MICROSERVICES_LIST); do \
+		echo "[docker push] pushing ${PREFIX}$${image}:latest"; \
+		docker push ${PREFIX}$${image}:latest 2>&1 | sed -e "s/^/ | /g"; \
+		echo "[docker push] pushing ${PREFIX}$${image}:${SHA}"; \
+		docker push ${PREFIX}$${image}:${SHA} 2>&1 | sed -e "s/^/ | /g"; \
+	done
+
+docker-push-monolith: docker-push-cdb
+	@echo "[docker push] pushing ${PREFIX}${MONOLITH_IMAGE}:latest"
+	@docker push ${PREFIX}${MONOLITH_IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
+	@echo "[docker push] pushing ${PREFIX}${MONOLITH_IMAGE}:${SHA}"
+	@docker push ${PREFIX}${MONOLITH_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
 
 docker-run:
 	@docker run -it --rm -p 6060:6060 -p 48855:48855 192.168.39.133:5000/etherscan-monolith:latest
@@ -75,19 +111,34 @@ ensure-proto-deps:
 k8s-cdb-connect:
 	@kubectl run -it --rm cockroach-client --image=cockroachdb/cockroach --restart=Never -- sql --insecure --host=cdb-cockroachdb-public.etherscan-data
 
-k8s-delete-monolith:
+k8s-microservices-delete:
+	@kubectl delete -f depl/microservices/k8s/02-cdb-schema.yaml
+	@kubectl delete -f depl/microservices/k8s/03-net-policy.yaml
+	@kubectl delete -f depl/microservices/k8s/04-etherscan-blockinserter.yaml
+	@kubectl delete -f depl/microservices/k8s/05-etherscan-frontend.yaml
+	@kubectl delete -f depl/microservices/k8s/06-etherscan-gravitas.yaml
+	@kubectl delete -f depl/microservices/k8s/07-etherscan-scanner.yaml
+	@kubectl delete -f depl/microservices/k8s/08-etherscan-scorestore.yaml
+	@kubectl delete -f depl/microservices/k8s/09-etherscan-txgraph.yaml
+	#@kubectl delete -f depl/microservices/k8s/01-namespaces.yaml
+	#@helm -n=etherscan-data uninstall cdb
+
+k8s-microservices-deploy:
+	#@helm install cdb --namespace=etherscan-data --values depl/monolith/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
+	@kubectl apply -f depl/microservices/k8s
+
+k8s-monolith-delete:
 	@kubectl delete -f depl/monolith/k8s/03-etherscan-monolith.yaml
 	@kubectl delete -f depl/monolith/k8s/02-cdb-schema.yaml
 	#@helm -n=etherscan-data uninstall cdb
 	#@kubectl delete -f depl/monolith/k8s/01-namespaces.yaml
 
-k8s-deploy-monolith:
-	#@kubectl apply -f depl/monolith/k8s/01-namespaces.yaml
+k8s-monolith-deploy:
 	#@helm install cdb --namespace=etherscan-data --values depl/monolith/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
-	@kubectl apply -f depl/monolith/k8s/02-cdb-schema.yaml
-	@kubectl apply -f depl/monolith/k8s/03-etherscan-monolith.yaml
+	@kubectl apply -f depl/monolith/k8s
 
-k8s-pprof-port-forward:
+
+k8s-monolith-pprof-port-forward:
 	@kubectl -n etherscan port-forward etherscan-monolith-instance-0 6060
 
 migrate-check-deps:
@@ -121,16 +172,6 @@ proto: ensure-proto-deps
 	@protoc --gofast_out=\
 	plugins=grpc:. \
 	scorestoreapi/proto/api.proto
-
-push:
-	@echo "[docker push] pushing ${PREFIX}${MONOLITH_IMAGE}:latest"
-	@docker push ${PREFIX}${MONOLITH_IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
-	@echo "[docker push] pushing ${PREFIX}${MONOLITH_IMAGE}:${SHA}"
-	@docker push ${PREFIX}${MONOLITH_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
-	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:latest"
-	@docker push ${PREFIX}${CDB_IMAGE}:latest 2>&1 | sed -e "s/^/ | /g"
-	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:${SHA}"
-	@docker push ${PREFIX}${CDB_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
 
 run-monolith:
 	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1m"

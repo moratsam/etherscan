@@ -55,6 +55,24 @@ func makeApp() *cli.App {
 	app.Name = appName
 	app.Version = appSha
 	app.Flags = []cli.Flag{
+		cli.DurationFlag{
+			Name:   "gravitas-update-interval",
+			Value:  5 * time.Minute,
+			EnvVar: "GRAVITAS_UPDATE_INTERVAL",
+			Usage:  "The time between subsequent gravitas score updates",
+		},
+		cli.IntFlag{
+			Name:   "gravitas-num-workers",
+			Value:  runtime.NumCPU(),
+			EnvVar: "GRAVITAS_NUM_WORKERS",
+			Usage:  "The number of workers to use for calculating gravitas scores (defaults to number of CPUs)",
+		},
+		cli.StringFlag{
+			Name:   "partition-detection-mode",
+			Value:  "single",
+			EnvVar: "PARTITION_DETECTION_MODE",
+			Usage:  "The partition detection mode to use. Supported values are 'dns=HEADLESS_SERVICE_NAME' (k8s) and 'single' (local dev mode)",
+		},
 		cli.StringFlag{
 			Name:   "score-store-api",
 			EnvVar: "SCORE_STORE_API",
@@ -64,24 +82,6 @@ func makeApp() *cli.App {
 			Name:   "tx-graph-api",
 			EnvVar: "TX_GRAPH_API",
 			Usage:  "The gRPC endpoint for connecting to the tx graph",
-		},
-		cli.IntFlag{
-			Name:   "gravitas-num-workers",
-			Value:  runtime.NumCPU(),
-			EnvVar: "GRAVITAS_NUM_WORKERS",
-			Usage:  "The number of workers to use for calculating gravitas scores (defaults to number of CPUs)",
-		},
-		cli.DurationFlag{
-			Name:   "gravitas-update-interval",
-			Value:  5 * time.Minute,
-			EnvVar: "UPDATE_INTERVAL",
-			Usage:  "The time between subsequent gravitas score updates",
-		},
-		cli.StringFlag{
-			Name:   "partition-detection-mode",
-			Value:  "single",
-			EnvVar: "PARTITION_DETECTION_MODE",
-			Usage:  "The partition detection mode to use. Supported values are 'dns=HEADLESS_SERVICE_NAME' (k8s) and 'single' (local dev mode)",
 		},
 		cli.IntFlag{
 			Name:   "pprof-port",
@@ -111,7 +111,7 @@ func runMain(appCtx *cli.Context) error {
 
 	var gravitasCfg gravitas.Config
 	gravitasCfg.ComputeWorkers = appCtx.Int("gravitas-num-workers")
-	gravitasCfg.UpdateInterval = appCtx.Duration("update-interval")
+	gravitasCfg.UpdateInterval = appCtx.Duration("gravitas-update-interval")
 	gravitasCfg.GraphAPI = txGraphAPI
 	gravitasCfg.ScoreStoreAPI = scoreStoreAPI
 	gravitasCfg.PartitionDetector = partDet

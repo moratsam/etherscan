@@ -1,0 +1,32 @@
+# Deploy a single instance of the blockinserter service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherscan-blockinserter-instance
+  namespace: etherscan
+  labels:
+    app: etherscan-blockinserter-instance
+spec:
+  selector:
+    matchLabels:
+      app: etherscan-blockinserter-instance
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: etherscan-blockinserter-instance
+    spec:
+      containers:
+      - name: etherscan-blockinserter
+        imagePullPolicy: Always
+        image: localhost:5000/etherscan-blockinserter:latest
+        args:
+          - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
+        ports:
+        - containerPort: 6060
+          name: pprof
+        resources:
+          limits:
+            cpu: "1"
+          requests:
+            cpu: 50m

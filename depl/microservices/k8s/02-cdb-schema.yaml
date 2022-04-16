@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cdb-ensure-schema
+  namespace: etherscan-data
+spec:
+  template:
+    spec:
+      containers:
+      - name: cdb-schema
+        imagePullPolicy: Always
+        image: localhost:5000/cdb-schema:latest
+        args: 
+         - "etherscan"
+         - "cdb-cockroachdb-public.etherscan-data"
+      restartPolicy: Never

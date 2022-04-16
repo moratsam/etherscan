@@ -13,8 +13,8 @@ RUN GIT_SHA=$(git rev-parse --short HEAD) && \
     CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
     go build -a \
     -ldflags "-extldflags '-static' -w -s -X main.appSha=$GIT_SHA" \
-    -o /go/bin/etherscan-scorescore \
-	 github.com/moratsam/etherscan/depl/microservices/scorescore
+    -o /go/bin/etherscan-scorestore \
+	 github.com/moratsam/etherscan/depl/microservices/scorestore
 
 ########################################################
 # STEP 2 create alpine image with trusted certs
@@ -22,6 +22,6 @@ RUN GIT_SHA=$(git rev-parse --short HEAD) && \
 
 FROM alpine:3.10
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
-COPY --from=builder /go/bin/etherscan-scorescore /go/bin/etherscan-scorescore
+COPY --from=builder /go/bin/etherscan-scorestore /go/bin/etherscan-scorestore
 
-ENTRYPOINT ["/go/bin/etherscan-scorescore"]
+ENTRYPOINT ["/go/bin/etherscan-scorestore"]

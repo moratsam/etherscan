@@ -17,7 +17,7 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
-	"github.com/moratsam/etherscan/depl/service/frontend"
+	"github.com/moratsam/etherscan/depl/monolith/service/frontend"
 	ssapi "github.com/moratsam/etherscan/scorestoreapi"
 	protossapi "github.com/moratsam/etherscan/scorestoreapi/proto"
 )

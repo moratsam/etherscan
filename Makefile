@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env cdb-connect cdb-start deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run run-cdb-migrations tags test 
+.PHONY: check-cdb-env cdb-connect cdb-start deps docker-run docker-build docker-build-and-push ensure-proto-deps k8s-cdb-connect k8s-delete-monolith k8s-deploy-monolith k8s-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto push run-monolith run-cdb-migrations tags test 
 
 define dsn_missing_error
 
@@ -49,7 +49,7 @@ deps:
 
 docker-build:
 	@echo "[docker build] building ${MONOLITH_IMAGE} (tags: ${PREFIX}${MONOLITH_IMAGE}:latest, ${PREFIX}${MONOLITH_IMAGE}:${SHA})"
-	@docker build --file ./depl/Dockerfile \
+	@docker build --file ./depl/monolith/Dockerfile \
 		--tag ${PREFIX}${MONOLITH_IMAGE}:latest \
 		--tag ${PREFIX}${MONOLITH_IMAGE}:${SHA} \
 		. 2>&1 | sed -e "s/^/ | /g"
@@ -62,7 +62,7 @@ docker-build:
 docker-build-and-push: docker-build push
 
 docker-run:
-	@docker run -it --rm -p 6060:6060 192.168.39.133:5000/etherscan-monolith:latest
+	@docker run -it --rm -p 6060:6060 -p 48855:48855 192.168.39.133:5000/etherscan-monolith:latest
 
 ensure-proto-deps:
 	@echo "[go get] ensuring protoc packages are available"
@@ -76,16 +76,16 @@ k8s-cdb-connect:
 	@kubectl run -it --rm cockroach-client --image=cockroachdb/cockroach --restart=Never -- sql --insecure --host=cdb-cockroachdb-public.etherscan-data
 
 k8s-delete-monolith:
-	@kubectl delete -f depl/k8s/03-etherscan-monolith.yaml
-	@kubectl delete -f depl/k8s/02-cdb-schema.yaml
+	@kubectl delete -f depl/monolith/k8s/03-etherscan-monolith.yaml
+	@kubectl delete -f depl/monolith/k8s/02-cdb-schema.yaml
 	#@helm -n=etherscan-data uninstall cdb
-	#@kubectl delete -f depl/k8s/01-namespaces.yaml
+	#@kubectl delete -f depl/monolith/k8s/01-namespaces.yaml
 
 k8s-deploy-monolith:
-	#@kubectl apply -f depl/k8s/01-namespaces.yaml
-	#@helm install cdb --namespace=etherscan-data --values depl/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
-	@kubectl apply -f depl/k8s/02-cdb-schema.yaml
-	@kubectl apply -f depl/k8s/03-etherscan-monolith.yaml
+	#@kubectl apply -f depl/monolith/k8s/01-namespaces.yaml
+	#@helm install cdb --namespace=etherscan-data --values depl/monolith/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
+	@kubectl apply -f depl/monolith/k8s/02-cdb-schema.yaml
+	@kubectl apply -f depl/monolith/k8s/03-etherscan-monolith.yaml
 
 k8s-pprof-port-forward:
 	@kubectl -n etherscan port-forward etherscan-monolith-instance-0 6060
@@ -132,8 +132,8 @@ push:
 	@echo "[docker push] pushing ${PREFIX}${CDB_IMAGE}:${SHA}"
 	@docker push ${PREFIX}${CDB_IMAGE}:${SHA} 2>&1 | sed -e "s/^/ | /g"
 
-run:
-	@go run depl/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1m" --frontend-listen-addr ":55488"
+run-monolith:
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1m"
 
 
 run-cdb-migrations: migrate-check-deps check-cdb-env

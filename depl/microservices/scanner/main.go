@@ -18,7 +18,7 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
-	"github.com/moratsam/etherscan/depl/service/scanner"
+	"github.com/moratsam/etherscan/depl/monolith/service/scanner"
 	"github.com/moratsam/etherscan/ethclient"
 	"github.com/moratsam/etherscan/txgraphapi"
 	prototxgraphapi "github.com/moratsam/etherscan/txgraphapi/proto"

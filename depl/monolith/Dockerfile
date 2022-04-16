@@ -14,7 +14,7 @@ RUN GIT_SHA=$(git rev-parse --short HEAD) && \
     go build -a \
     -ldflags "-extldflags '-static' -w -s -X main.appSha=$GIT_SHA" \
     -o /go/bin/etherscan-monolith \
-    github.com/moratsam/etherscan/depl
+    github.com/moratsam/etherscan/depl/monolith
 
 ########################################################
 # STEP 2 create alpine image with trusted certs

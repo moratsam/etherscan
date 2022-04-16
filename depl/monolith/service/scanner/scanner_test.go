@@ -6,7 +6,7 @@ import (
 	"github.com/golang/mock/gomock"
 	gc "gopkg.in/check.v1"
 
-	"github.com/moratsam/etherscan/depl/service/scanner/mocks"
+	"github.com/moratsam/etherscan/depl/monolith/service/scanner/mocks"
 )
 
 var _ = gc.Suite(new(ConfigTestSuite))

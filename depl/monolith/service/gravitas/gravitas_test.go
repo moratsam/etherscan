@@ -11,8 +11,8 @@ import (
 	"github.com/juju/clock/testclock"
 	gc "gopkg.in/check.v1"
 
-	"github.com/moratsam/etherscan/depl/partition"
-	"github.com/moratsam/etherscan/depl/service/gravitas/mocks"
+	"github.com/moratsam/etherscan/depl/monolith/partition"
+	"github.com/moratsam/etherscan/depl/monolith/service/gravitas/mocks"
 	"github.com/moratsam/etherscan/scorestore"
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )

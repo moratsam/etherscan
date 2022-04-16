@@ -11,13 +11,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
-	"github.com/moratsam/etherscan/depl/partition"
+	"github.com/moratsam/etherscan/depl/monolith/partition"
 	"github.com/moratsam/etherscan/gravitas"
 	ss "github.com/moratsam/etherscan/scorestore"
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )
 
-//go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/depl/service/gravitas GraphAPI,ScoreStoreAPI
+//go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/depl/monolith/service/gravitas GraphAPI,ScoreStoreAPI
 //go:generate mockgen -package mocks -destination mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph TxIterator,WalletIterator
 
 // GraphAPI defines as set of API methods for fetching the wallets and their transactions

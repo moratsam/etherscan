@@ -14,7 +14,7 @@ import (
 	binserter "github.com/moratsam/etherscan/blockinserter"
 )
 
-//go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/depl/service/scanner ETHClient,GraphAPI
+//go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/depl/monolith/service/scanner ETHClient,GraphAPI
 //go:generate mockgen -package mocks -destination mocks/mock_iterator.go github.com/moratsam/etherscan/txgraph/graph BlockIterator
 
 //ETHClient is implemented by objects that can fetch an eth block by its number.

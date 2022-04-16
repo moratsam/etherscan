@@ -19,8 +19,8 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
-	"github.com/moratsam/etherscan/depl/partition"
-	"github.com/moratsam/etherscan/depl/service/gravitas"
+	"github.com/moratsam/etherscan/depl/monolith/partition"
+	"github.com/moratsam/etherscan/depl/monolith/service/gravitas"
 	ssapi "github.com/moratsam/etherscan/scorestoreapi"
 	protossapi "github.com/moratsam/etherscan/scorestoreapi/proto"
 	"github.com/moratsam/etherscan/txgraphapi"

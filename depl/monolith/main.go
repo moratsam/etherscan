@@ -16,12 +16,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
-	"github.com/moratsam/etherscan/depl/partition"
-	"github.com/moratsam/etherscan/depl/service"
-	"github.com/moratsam/etherscan/depl/service/blockinserter"
-	"github.com/moratsam/etherscan/depl/service/frontend"
-	"github.com/moratsam/etherscan/depl/service/gravitas"
-	"github.com/moratsam/etherscan/depl/service/scanner"
+	"github.com/moratsam/etherscan/depl/monolith/partition"
+	"github.com/moratsam/etherscan/depl/monolith/service"
+	"github.com/moratsam/etherscan/depl/monolith/service/blockinserter"
+	"github.com/moratsam/etherscan/depl/monolith/service/frontend"
+	"github.com/moratsam/etherscan/depl/monolith/service/gravitas"
+	"github.com/moratsam/etherscan/depl/monolith/service/scanner"
 	"github.com/moratsam/etherscan/ethclient"
 	ss "github.com/moratsam/etherscan/scorestore"
 	cdbss "github.com/moratsam/etherscan/scorestore/cdb"
@@ -89,7 +89,7 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	)
 
 	// frontend
-	flag.StringVar(&frontendCfg.ListenAddr, "frontend-listen-addr", ":8080", "The address to listen for incoming front-end requests")
+	flag.StringVar(&frontendCfg.ListenAddr, "frontend-listen-addr", ":48855", "The address to listen for incoming front-end requests")
 	flag.IntVar(&frontendCfg.ResultsPerPage, "frontend-results-per-page", 30, "The number of entries for each search result page")
 
 	// gravitas

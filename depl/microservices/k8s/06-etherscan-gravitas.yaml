@@ -1,31 +1,85 @@
-# Deploy a single instance of the gravitas service
+# A service with a cluster IP that serves as a load-balancer for the frontend
+# pods. It is exposed outside the cluster via the above ingress resource.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gravitas-master
+  namespace: etherscan
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: grpc
+  selector:
+    app: etherscan-gravitas-master-instance
+---
+# Deploy a single master pod
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: etherscan-gravitas-instance
+  name: etherscan-gravitas-master-instance
   namespace: etherscan
   labels:
-    app: etherscan-gravitas-instance
+    app: etherscan-gravitas-master-instance
 spec:
   selector:
     matchLabels:
-      app: etherscan-gravitas-instance
+      app: etherscan-gravitas-master-instance
   replicas: 1
   template:
     metadata:
       labels:
-        app: etherscan-gravitas-instance
+        app: etherscan-gravitas-master-instance
     spec:
       containers:
-      - name: etherscan-gravitas
+      - name: etherscan-gravitas-master
         imagePullPolicy: Always
         image: localhost:5000/etherscan-gravitas:latest
         args:
+          - "-mode=master"
           - "-gravitas-update-interval=1m"
-          - "-gravitas-num-workers=16"
+          - "-master-port=8080"
+          - "-worker-acquire-timeout=10s"
+        ports:
+        - containerPort: 8080
+          name: grpc
+        - containerPort: 6060
+          name: pprof
+        resources:
+          limits:
+            cpu: "1"
+          requests:
+            cpu: 25m
+---
+# Deploy two worker pods
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherscan-gravitas-worker-instance
+  namespace: etherscan
+  labels:
+    app: etherscan-gravitas-worker-instance
+spec:
+  selector:
+    matchLabels:
+      app: etherscan-gravitas-worker-instance
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: etherscan-gravitas-worker-instance
+    spec:
+      containers:
+      - name: etherscan-gravitas-worker
+        imagePullPolicy: Always
+        image: localhost:5000/etherscan-gravitas:latest
+        args:
+          - "-mode=worker"
+          - "-master-endpoint=gravitas-master:8080"
+          - "-gravitas-num-workers=4"
           - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
           - "-score-store-api=etherscan-scorestore.etherscan-data:8080"
-          - "-partition-detection-mode=single"
         ports:
         - containerPort: 6060
           name: pprof

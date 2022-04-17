@@ -172,6 +172,12 @@ proto: ensure-proto-deps
 	@protoc --gofast_out=\
 	plugins=grpc:. \
 	scorestoreapi/proto/api.proto
+	@echo "[protoc] generating protos for dbspgraph API"
+	@protoc --gofast_out=\
+	Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,\
+	Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,\
+	plugins=grpc:. \
+	dbspgraph/proto/api.proto
 
 run-monolith:
 	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1m"

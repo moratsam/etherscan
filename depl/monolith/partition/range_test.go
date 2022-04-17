@@ -63,3 +63,45 @@ func (s *RangeTestSuite) TestPartitionExtentsError(c *gc.C) {
 	_, _, err = r.PartitionExtents(1)
 	c.Assert(err, gc.ErrorMatches, "invalid partition index")
 }
+
+
+func (s *RangeTestSuite) TestPartitionLookup(c *gc.C) {
+	r, err := NewFullRange(4)
+	c.Assert(err, gc.IsNil)
+
+	from, to := r.Extents()
+	c.Assert(from, gc.Equals, "0000000000000000000000000000000000000000")
+	c.Assert(to, gc.Equals, "ffffffffffffffffffffffffffffffffffffffff")
+
+	specs := []struct {
+		addr  string
+		exp int
+	}{
+		{"0f00000000000000000000000000000000000000", 0},
+		{"4000000000000000000000000000000000000000", 1},
+		{"8000000010000000000000000000000000000000", 2},
+		{"c000000030000000000000000000000000000000", 3},
+	}
+
+	for i, spec := range specs {
+		c.Logf("spec: %d -> lookup partition for %v", i, spec.addr)
+		got, err := r.PartitionForAddr(spec.addr)
+		c.Assert(err, gc.IsNil)
+		c.Assert(got, gc.Equals, spec.exp)
+	}
+}
+
+func (s *RangeTestSuite) TestPartitionLookupError(c *gc.C) {
+	r, err := NewRange(
+		"c000000000000000000000000000000000000000",
+		"f000000000000000000000000000000000000000",
+		1,
+	)
+	c.Assert(err, gc.IsNil)
+
+	_, err = r.PartitionForAddr("0000000000000000000000000000000000000000")
+	c.Assert(err, gc.ErrorMatches, "unable to detect partition.*")
+
+	_, err = r.PartitionForAddr("ffffffffffffffffffffffffffffffffffffffff")
+	c.Assert(err, gc.ErrorMatches, "unable to detect partition.*")
+}

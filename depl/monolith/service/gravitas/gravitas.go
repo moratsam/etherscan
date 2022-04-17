@@ -88,7 +88,7 @@ func (cfg *Config) validate() error {
 
 // Service implements the Gravitas calculator component for the Links 'R' Us project.
 type Service struct {
-	cfg        Config
+	cfg		  Config
 	calculator *gravitas.Calculator
 }
 
@@ -104,8 +104,8 @@ func NewService(cfg Config) (*Service, error) {
 	}
 
 	return &Service{
-		cfg:        cfg,
-		calculator: calculator,
+		cfg:		 	cfg,
+		calculator:	calculator,
 	}, nil
 }
 
@@ -170,11 +170,11 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 	scorePersistTime := svc.cfg.Clock.Now().Sub(tick)
 
 	svc.cfg.Logger.WithFields(logrus.Fields{
-		"processed_wallets":        len(svc.calculator.Graph().Vertices()),
-		"graph_populate_time":    graphPopulateTime.String(),
-		"score_calculation_time": scoreCalculationTime.String(),
-		"score_persist_time":     scorePersistTime.String(),
-		"total_pass_time":        svc.cfg.Clock.Now().Sub(startAt).String(),
+		"processed_wallets":			len(svc.calculator.Graph().Vertices()),
+		"graph_populate_time":		graphPopulateTime.String(),
+		"score_calculation_time":	scoreCalculationTime.String(),
+		"score_persist_time":		scorePersistTime.String(),
+		"total_pass_time":			svc.cfg.Clock.Now().Sub(startAt).String(),
 	}).Info("completed Gravitas update pass")
 	return nil
 }

@@ -3,6 +3,7 @@ package partition
 import (
 	"fmt"
 	"math/big"
+	"sort"
 
 	"golang.org/x/xerrors"
 )
@@ -16,7 +17,7 @@ type Range struct {
 
 // NewFullRange creates a new range that uses the full wallet address value space
 // and splits it into the provided number of partitions.
-func NewFullRange(numPartitions int) (Range, error) {
+func NewFullRange(numPartitions int) (*Range, error) {
 	return NewRange(
 		"0000000000000000000000000000000000000000",
 		"ffffffffffffffffffffffffffffffffffffffff",
@@ -26,7 +27,7 @@ func NewFullRange(numPartitions int) (Range, error) {
 
 // NewRange creates a new range [minAddr, maxAddr)
 // and splits it into the provided number of partitions.
-func NewRange(minAddr, maxAddr string, numPartitions int) (Range, error) {
+func NewRange(minAddr, maxAddr string, numPartitions int) (*Range, error) {
 	var (
 		ok bool
 		boundary = big.NewInt(0)
@@ -36,13 +37,13 @@ func NewRange(minAddr, maxAddr string, numPartitions int) (Range, error) {
 	)
 
 	if minAddr >= maxAddr {
-		return Range{}, xerrors.Errorf("range min address must be less than max address")
+		return nil, xerrors.Errorf("range min address must be less than max address")
 	} else if numPartitions <= 0 {
-		return Range{}, xerrors.Errorf("number of partitions must exceed 0")
+		return nil, xerrors.Errorf("number of partitions must exceed 0")
 	} else if minAddrInt, ok = minAddrInt.SetString(minAddr, 16); !ok {
-		return Range{}, xerrors.Errorf("failed to parse min address: %s", minAddr)
+		return nil, xerrors.Errorf("failed to parse min address: %s", minAddr)
 	}  else if maxAddrInt, ok = maxAddrInt.SetString(maxAddr, 16); !ok {
-		return Range{}, xerrors.Errorf("failed to parse max address: %s", maxAddr)
+		return nil, xerrors.Errorf("failed to parse max address: %s", maxAddr)
 	}
 
 	// Calculate the size of each partition as ((maxAddr - minAddr + 1) / numPartitions).
@@ -59,11 +60,16 @@ func NewRange(minAddr, maxAddr string, numPartitions int) (Range, error) {
 		}
 	}
 
-	return Range{start: minAddr, rangeSplits: ranges}, nil
+	return &Range{start: minAddr, rangeSplits: ranges}, nil
+}
+
+// Extents returns the [start, end) extents of the entire range.
+func (r *Range) Extents() (string, string) {
+	return r.start, r.rangeSplits[len(r.rangeSplits)-1]
 }
 
 // PartitionExtents returns the [minAddr, maxAddr) range for the requested partition.
-func (r Range) PartitionExtents(partition int) (string, string, error) {
+func (r *Range) PartitionExtents(partition int) (string, string, error) {
 	if partition < 0 || partition >= len(r.rangeSplits) {
 		return "", "", xerrors.Errorf("invalid partition index")
 	}
@@ -72,4 +78,20 @@ func (r Range) PartitionExtents(partition int) (string, string, error) {
 		return r.start, r.rangeSplits[0], nil
 	}
 	return r.rangeSplits[partition-1], r.rangeSplits[partition], nil
+}
+
+
+// PartitionForAddr returns the partition index that the provided address belongs to.
+func (r *Range) PartitionForAddr(address string) (int, error) {
+	// As our partition ranges are already sorted we can run a binary search to
+	// find the correct partition slot.
+	partIndex := sort.Search(len(r.rangeSplits), func(n int) bool {
+		return address < r.rangeSplits[n]
+	})
+
+	if address < r.start || partIndex >= len(r.rangeSplits) {
+		return -1, xerrors.Errorf("unable to detect partition for address %q", address)
+	}
+
+	return partIndex, nil
 }

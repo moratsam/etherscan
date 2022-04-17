@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -19,8 +18,7 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
-	"github.com/moratsam/etherscan/depl/monolith/partition"
-	"github.com/moratsam/etherscan/depl/monolith/service/gravitas"
+	"github.com/moratsam/etherscan/depl/microservices/gravitas/service"
 	ssapi "github.com/moratsam/etherscan/scorestoreapi"
 	protossapi "github.com/moratsam/etherscan/scorestoreapi/proto"
 	"github.com/moratsam/etherscan/txgraphapi"
@@ -55,36 +53,64 @@ func makeApp() *cli.App {
 	app.Name = appName
 	app.Version = appSha
 	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:	"mode",
+			EnvVar: "MODE",
+			Usage:  "The operation mode to use (master or worker)",
+		},
+		cli.StringFlag{
+			Name:	"master-endpoint",
+			EnvVar: "MASTER_ENDPOINT",
+			Usage:  "The endpoint for connecting to the master node (worker mode)",
+		},
 		cli.DurationFlag{
-			Name:   "gravitas-update-interval",
+			Name:	"master-dial-timeout",
+			EnvVar: "MASTER_DIAL_TIMEOUT",
+			Value:  10 * time.Second,
+			Usage:  "The timeout for establishing a connection to the master node (worker mode)",
+		},
+		cli.IntFlag{
+			Name:	"master-port",
+			Value:  8080,
+			EnvVar: "MASTER_PORT",
+			Usage:  "The port where the master listens for incoming connections (master mode)",
+		},
+		cli.DurationFlag{
+			Name:	"gravitas-update-interval",
 			Value:  5 * time.Minute,
 			EnvVar: "GRAVITAS_UPDATE_INTERVAL",
 			Usage:  "The time between subsequent gravitas score updates",
 		},
 		cli.IntFlag{
-			Name:   "gravitas-num-workers",
+			Name:	"min-workers-for-update",
+			Value:  0,
+			EnvVar: "MIN_WORKERS_FOR_UPDATE",
+			Usage:  "The minimum number of workers that must be connected before making a new pass; 0 indicates that at least one worker is required (master mode)",
+		},
+		cli.DurationFlag{
+			Name:	"worker-acquire-timeout",
+			Value:  0,
+			EnvVar: "WORKER_ACQUIRE_TIMEOUT",
+			Usage:  "The time that the master waits for the requested number of workers to be connected before skipping a pass (master mode)",
+		},
+		cli.IntFlag{
+			Name:	"gravitas-num-workers",
 			Value:  runtime.NumCPU(),
 			EnvVar: "GRAVITAS_NUM_WORKERS",
 			Usage:  "The number of workers to use for calculating gravitas scores (defaults to number of CPUs)",
 		},
 		cli.StringFlag{
-			Name:   "partition-detection-mode",
-			Value:  "single",
-			EnvVar: "PARTITION_DETECTION_MODE",
-			Usage:  "The partition detection mode to use. Supported values are 'dns=HEADLESS_SERVICE_NAME' (k8s) and 'single' (local dev mode)",
-		},
-		cli.StringFlag{
-			Name:   "score-store-api",
+			Name:	"score-store-api",
 			EnvVar: "SCORE_STORE_API",
 			Usage:  "The gRPC endpoint for connecting to the score store",
 		},
 		cli.StringFlag{
-			Name:   "tx-graph-api",
+			Name:	"tx-graph-api",
 			EnvVar: "TX_GRAPH_API",
 			Usage:  "The gRPC endpoint for connecting to the tx graph",
 		},
 		cli.IntFlag{
-			Name:   "pprof-port",
+			Name:	"pprof-port",
 			Value:  6060,
 			EnvVar: "PPROF_PORT",
 			Usage:  "The port for exposing pprof endpoints",
@@ -95,42 +121,48 @@ func makeApp() *cli.App {
 }
 
 func runMain(appCtx *cli.Context) error {
-	var wg sync.WaitGroup
-	ctx, cancelFn := context.WithCancel(context.Background())
+	var (
+		serviceRunner interface {
+			Run(context.Context) error
+		}
+		ctx, cancelFn = context.WithCancel(context.Background())
+		err			  error
+		logger		  = logger.WithField("mode", appCtx.String("mode"))
+	)
 	defer cancelFn()
 
-	partDet, err := getPartitionDetector(appCtx.String("partition-detection-mode"))
-	if err != nil {
-		return err
-	}
-
-	scoreStoreAPI, txGraphAPI, err := getAPIs(ctx, appCtx.String("score-store-api"), appCtx.String("tx-graph-api"))
-	if err != nil {
-		return err
-	}
-
-	var gravitasCfg gravitas.Config
-	gravitasCfg.ComputeWorkers = appCtx.Int("gravitas-num-workers")
-	gravitasCfg.UpdateInterval = appCtx.Duration("gravitas-update-interval")
-	gravitasCfg.GraphAPI = txGraphAPI
-	gravitasCfg.ScoreStoreAPI = scoreStoreAPI
-	gravitasCfg.PartitionDetector = partDet
-	gravitasCfg.Logger = logger
-	svc, err := gravitas.NewService(gravitasCfg)
-	if err != nil {
-		return err
-	}
-
-	// Start gravitas.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := svc.Run(ctx); err != nil {
-			logger.WithField("err", err).Error("gravitas service exited with error")
-			cancelFn()
+	switch appCtx.String("mode") {
+	case "master":
+		if serviceRunner, err = service.NewMasterNode(service.MasterConfig{
+			ListenAddress:		  fmt.Sprintf(":%d", appCtx.Int("master-port")),
+			UpdateInterval:		 appCtx.Duration("gravitas-update-interval"),
+			MinWorkers:			  appCtx.Int("min-workers-for-update"),
+			WorkerAcquireTimeout: appCtx.Duration("worker-acquire-timeout"),
+			Logger:					logger,
+		}); err != nil {
+			return err
 		}
-	}()
+	case "worker":
+		scoreStoreAPI, txGraphAPI, err := getAPIs(ctx, appCtx.String("score-store-api"), appCtx.String("tx-graph-api"))
+		if err != nil {
+			return err
+		}
 
+		if serviceRunner, err = service.NewWorkerNode(service.WorkerConfig{
+			MasterEndpoint:		appCtx.String("master-endpoint"),
+			MasterDialTimeout:	appCtx.Duration("master-dial-timeout"),
+			GraphAPI:				txGraphAPI,
+			ScoreStoreAPI:			scoreStoreAPI,
+			ComputeWorkers:	 	appCtx.Int("gravitas-num-workers"),
+			Logger:					logger,
+		}); err != nil {
+			return err
+		}
+	default:
+		return xerrors.Errorf("unsupported mode %q; please specify one of: master, worker", appCtx.String("role"))
+	}
+
+	var wg sync.WaitGroup
 	// Start pprof server
 	pprofListener, err := net.Listen("tcp", fmt.Sprintf(":%d", appCtx.Int("pprof-port")))
 	if err != nil {
@@ -144,6 +176,15 @@ func runMain(appCtx *cli.Context) error {
 		logger.WithField("port", appCtx.Int("pprof-port")).Info("listening for pprof requests")
 		srv := new(http.Server)
 		_ = srv.Serve(pprofListener)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := serviceRunner.Run(ctx); err != nil {
+			logger.WithField("err", err).Error("gravitas service exited with error")
+			cancelFn()
+		}
 	}()
 
 	// Start signal watcher
@@ -189,16 +230,4 @@ func getAPIs(ctx context.Context, scoreStoreAPI, txGraphAPI string) (*ssapi.Scor
 	txGraphCli := txgraphapi.NewTxGraphClient(ctx, prototxgraphapi.NewTxGraphClient(txGraphConn))
 
 	return scoreStoreCli, txGraphCli, nil
-}
-
-func getPartitionDetector(mode string) (partition.Detector, error) {
-	switch {
-	case mode == "single":
-		return partition.Fixed{Partition: 0, NumPartitions: 1}, nil
-	case strings.HasPrefix(mode, "dns="):
-		tokens := strings.Split(mode, "=")
-		return partition.DetectFromSRVRecords(tokens[1]), nil
-	default:
-		return nil, xerrors.Errorf("unsupported partition detection mode: %q", mode)
-	}
 }

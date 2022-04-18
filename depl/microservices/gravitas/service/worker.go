@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"io/ioutil"
-	"math/big"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -27,7 +26,7 @@ type GraphAPI interface {
 
 // ScoreStoreAPI defines a set of API methods for updating the Gravitas scores of wallets.
 type ScoreStoreAPI interface {
-	UpsertScore(score *ss.Score) error
+	UpsertScores(scores []*ss.Score) error
 	UpsertScorer(scorer *ss.Scorer) error
 }
 
@@ -164,50 +163,13 @@ func (n *WorkerNode) StartJob(jobDetails job.Details, execFactory bspgraph.Execu
 	return n.calculator.Executor(), nil
 }
 
-func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
-	walletIt, err := n.cfg.GraphAPI.Wallets(fromAddr, toAddr)
-	if err != nil {
-		return err
-	}
-
-	for walletIt.Next() {
-		wallet := walletIt.Wallet()
-		
-		// Retrieve wallet's transactions.
-		txIt, err := n.cfg.GraphAPI.WalletTxs(wallet.Address)
-		if err != nil {
-			return err
-		}
-		var txs []*txgraph.Tx
-		for txIt.Next() {
-			txs = append(txs, txIt.Tx())	
-		}
-		if err = txIt.Error(); err != nil {
-			_ = txIt.Close()
-			return err
-		}
-		if err = txIt.Close(); err != nil {
-			return err
-		}
-
-		// Add vertex
-		n.calculator.AddVertex(wallet.Address, txs)
-	}
-	if err = walletIt.Error(); err != nil {
-		_ = walletIt.Close()
-		return err
-	}
-
-	return walletIt.Close()
-}
-
 // CompleteJob implements job.Runner. It persists the locally computed Gravitas
 // scores after a successful execution of a distributed Gravitas run.
 func (n *WorkerNode) CompleteJob(_ job.Details) error {
 	scoreCalculationTime := time.Since(n.scoreCalculationStartedAt)
 
 	tick := time.Now()
-	if err := n.calculator.Scores(n.persistScore); err != nil {
+	if err := n.calculator.ScoresAll(n.persistScores); err != nil {
 		return err
 	}
 	scorePersistTime := time.Since(tick)
@@ -222,15 +184,145 @@ func (n *WorkerNode) CompleteJob(_ job.Details) error {
 	return nil
 }
 
-func (n *WorkerNode) persistScore(wallet string, value *big.Float) error {
-	score := &ss.Score{
-		Wallet:	wallet,
-		Scorer:	"balance_eth",
-		Value:	value,	
-	}
-
-	return n.cfg.ScoreStoreAPI.UpsertScore(score)
-}
-
 // AbortJob implements job.Runner.
 func (n *WorkerNode) AbortJob(_ job.Details) {}
+
+func (n *WorkerNode) persistScores(vertices []*bspgraph.Vertex) error {
+	scores := make([]*ss.Score, len(vertices))
+	for i, vertex := range vertices {
+		scores[i] = &ss.Score{
+			Wallet: vertex.ID(),
+			Scorer: "balance_eth",
+			Value: vertex.Value().(gravitas.VertexData).Value,
+		}
+	}
+
+	return n.cfg.ScoreStoreAPI.UpsertScores(scores)
+}
+
+type vertex struct {
+	address string
+	txs []*txgraph.Tx
+}
+
+// Loads wallets and their transactions into the graph.
+// To speed things up, <numWorkers> routines are simultaneously fetching txs.
+func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+	numWorkers := 10
+	vertexCh := make(chan vertex, numWorkers)
+	walletNumCh := make(chan int, 1)
+	doneCh := make(chan struct{}, 1)
+	addrCh := make(chan string, numWorkers)
+	errCh := make(chan error, 1)
+	for i:=0; i<numWorkers; i++ {
+		go n.fetchWalletTxs(ctx, addrCh, vertexCh, errCh)
+	}
+
+	go n.addVertices(ctx, vertexCh, walletNumCh, doneCh)
+
+	// Iterate over all the wallets and send their addresses to the addrCh.
+	// If an error occurs in any of the fetchWalletTxs subroutines, return it.
+	walletIt, err := n.cfg.GraphAPI.Wallets(fromAddr, toAddr)
+	if err != nil {
+		return err
+	}
+	walletNum := 0
+	for walletIt.Next() {
+		walletNum++
+		wallet := walletIt.Wallet()
+		select {
+		case err := <-errCh:
+			_ = walletIt.Close()
+			return err
+		case addrCh <- wallet.Address:
+		}
+	}
+
+	if err = walletIt.Error(); err != nil {
+		_ = walletIt.Close()
+		return err
+	}
+	if err = walletIt.Close(); err != nil {
+		return err
+	}
+
+	// Send the total number of wallets to the addVertices routine, so it knows when it's done.
+	walletNumCh <- walletNum
+
+	// Wait for the addVertices routine to finish or an error to occur.
+	select {
+	case <- doneCh:
+		return nil
+	case err := <-errCh:
+		return err
+	}
+}
+
+// Reads wallet addresses from the addrCh, creates a iterator for a wallets transactions,
+// sends the address + txs data as a vertex to the addVertices.
+// If it encounters an error, it sends it to the errCh.
+func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error) {
+	var addr string
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case addr = <-addrCh:
+			// Retrieve wallet's transactions.
+			txIt, err := n.cfg.GraphAPI.WalletTxs(addr)
+			if err != nil {
+				maybeEmitError(err, errCh)
+				return
+			}
+			var txs []*txgraph.Tx
+			for txIt.Next() {
+				txs = append(txs, txIt.Tx())	
+			}
+			if err = txIt.Error(); err != nil {
+				_ = txIt.Close()
+				maybeEmitError(err, errCh)
+				return
+			}
+			if err = txIt.Close(); err != nil {
+				maybeEmitError(err, errCh)
+				return
+			}
+			
+			// Send the vertex data to the vertexCh.
+			vertexCh <- vertex{address: addr, txs: txs}
+		}
+	}
+}
+
+// Reads vertices from the vertexCh and adds them to the graph.
+// Receives the total number of vertices via the walletNumCh.
+// Signals via the doneCh when it's done.
+func (n *WorkerNode) addVertices(ctx context.Context, vertexCh <-chan vertex, walletNumCh <-chan int, doneCh chan<- struct{}) {
+	walletNum := -1
+	walletNumSeen := 0
+	var v vertex
+	for {
+		if walletNumSeen == walletNum {
+			doneCh <- struct{}{}
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case walletNum = <-walletNumCh:
+		case v = <-vertexCh:
+			walletNumSeen++
+			// Add vertex
+			n.calculator.AddVertex(v.address, v.txs)
+		}
+	}
+}
+
+func maybeEmitError(err error, errCh chan<- error) {
+	select {
+		case errCh <- err: // error emitted.
+		default: // error channel is full with other errors.
+	}
+}

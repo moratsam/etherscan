@@ -24,20 +24,24 @@ func NewScoreStoreServer(s ss.ScoreStore) *ScoreStoreServer {
 	return &ScoreStoreServer{s: s}
 }
 
-func (s *ScoreStoreServer) UpsertScore(_ context.Context, req *proto.Score) (*empty.Empty, error) {
-	// Make necessary conversions from proto formats.
-	value := new(big.Float)
-	value, ok := value.SetString(req.Value)
-	if !ok {
-		return new(empty.Empty), xerrors.New("invalid bigint SetString")
+func (s *ScoreStoreServer) UpsertScores(_ context.Context, req *proto.ScoreBatch) (*empty.Empty, error) {
+	scores := make([]*ss.Score, len(req.Scores))
+	for i, reqScore := range req.Scores {
+		// Make necessary conversions from proto formats.
+		value := new(big.Float)
+		value, ok := value.SetString(reqScore.Value)
+		if !ok {
+			return new(empty.Empty), xerrors.New("invalid bigint SetString")
+		}
+
+		scores[i] = &ss.Score{
+			Wallet:	reqScore.Wallet,
+			Scorer:	reqScore.Scorer,
+			Value:	value,
+		}
 	}
 
-	score := &ss.Score{
-		Wallet:	req.Wallet,
-		Scorer:	req.Scorer,
-		Value:	value,
-	}
-	err := s.s.UpsertScore(score)
+	err := s.s.UpsertScores(scores)
 	return new(empty.Empty), err
 }
 

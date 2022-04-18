@@ -88,20 +88,6 @@ func (m *MockScoreStoreAPI) EXPECT() *MockScoreStoreAPIMockRecorder {
 	return m.recorder
 }
 
-// UpsertScore mocks base method.
-func (m *MockScoreStoreAPI) UpsertScore(arg0 *scorestore.Score) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpsertScore", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpsertScore indicates an expected call of UpsertScore.
-func (mr *MockScoreStoreAPIMockRecorder) UpsertScore(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertScore", reflect.TypeOf((*MockScoreStoreAPI)(nil).UpsertScore), arg0)
-}
-
 // UpsertScorer mocks base method.
 func (m *MockScoreStoreAPI) UpsertScorer(arg0 *scorestore.Scorer) error {
 	m.ctrl.T.Helper()
@@ -114,4 +100,18 @@ func (m *MockScoreStoreAPI) UpsertScorer(arg0 *scorestore.Scorer) error {
 func (mr *MockScoreStoreAPIMockRecorder) UpsertScorer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertScorer", reflect.TypeOf((*MockScoreStoreAPI)(nil).UpsertScorer), arg0)
+}
+
+// UpsertScores mocks base method.
+func (m *MockScoreStoreAPI) UpsertScores(arg0 []*scorestore.Score) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertScores", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpsertScores indicates an expected call of UpsertScores.
+func (mr *MockScoreStoreAPIMockRecorder) UpsertScores(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertScores", reflect.TypeOf((*MockScoreStoreAPI)(nil).UpsertScores), arg0)
 }

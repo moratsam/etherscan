@@ -26,13 +26,17 @@ func NewScoreStoreClient(ctx context.Context, rpcClient proto.ScoreStoreClient) 
 	return &ScoreStoreClient{ctx: ctx, cli: rpcClient}
 }
 
-func (c *ScoreStoreClient) UpsertScore(score *ss.Score) error {
-	req := &proto.Score{
-		Wallet:	score.Wallet,
-		Scorer:	score.Scorer,
-		Value:	score.Value.String(),
+func (c *ScoreStoreClient) UpsertScores(scores []*ss.Score) error {
+	reqScores := make([]*proto.Score, len(scores))
+	for i,score := range scores {
+		reqScores[i] = &proto.Score{
+			Wallet:	score.Wallet,
+			Scorer:	score.Scorer,
+			Value:	score.Value.String(),
+		}
 	}
-	_, err := c.cli.UpsertScore(c.ctx, req)
+	req := &proto.ScoreBatch{Scores: reqScores}
+	_, err := c.cli.UpsertScores(c.ctx, req)
 	return err
 }
 

@@ -180,7 +180,7 @@ proto: ensure-proto-deps
 	dbspgraph/proto/api.proto
 
 run-monolith:
-	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1s"
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1m"
 
 
 run-cdb-migrations: migrate-check-deps check-cdb-env
@@ -192,5 +192,5 @@ tags:
 
 test: 
 	@echo "[go test] running tests and collecting coverage metrics"
-	@go test -v -tags all_tests -race -coverprofile=coverage.txt -covermode=atomic ./...
+	@go test -v -tags all_tests -coverprofile=coverage.txt -covermode=atomic ./...
 

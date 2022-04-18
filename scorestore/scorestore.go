@@ -3,9 +3,9 @@ package scorestore
 import "math/big"
 
 type ScoreStore interface {
-	// Upsert a score.
+	// Upsert scores.
 	// On conflict of (wallet, scorer), the value will be updated.
-	UpsertScore(score *Score) error
+	UpsertScores(scores []*Score) error
 
 	// Upsert a scorer.
 	UpsertScorer(scorer *Scorer) error

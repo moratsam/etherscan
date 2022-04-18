@@ -5,9 +5,9 @@ import "google/protobuf/empty.proto";
 
 
 service ScoreStore {
-	// Upsert a score.
+	// Upsert scores.
 	// On conflict of (wallet, scorer), the value will be updated.
-	rpc UpsertScore(Score) returns (google.protobuf.Empty);
+	rpc UpsertScores(ScoreBatch) returns (google.protobuf.Empty);
 
 	// Upsert a scorer.
 	rpc UpsertScorer(Scorer) returns (google.protobuf.Empty);
@@ -28,6 +28,10 @@ message Score {
 	string wallet = 1;
 	string scorer = 2;
 	string value  = 3;
+}
+
+message ScoreBatch {
+	repeated Score scores = 1;
 }
 
 message Scorer {

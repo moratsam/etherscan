@@ -13,7 +13,7 @@ import (
 
 	"github.com/moratsam/etherscan/depl/monolith/partition"
 	"github.com/moratsam/etherscan/depl/monolith/service/gravitas/mocks"
-	"github.com/moratsam/etherscan/scorestore"
+	ss "github.com/moratsam/etherscan/scorestore"
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )
 
@@ -121,18 +121,18 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	mockGraph.EXPECT().WalletTxs(addr1).Return(mockTxIt, nil)
 	mockGraph.EXPECT().WalletTxs(addr2).Return(mockTxIt2, nil)
 
-	score1 := &scorestore.Score{
+	score1 := &ss.Score{
 		Wallet:	addr1,
 		Scorer:	"balance_eth",
 		Value:	big.NewFloat(-2),
 	}
-	score2 := &scorestore.Score{
+	score2 := &ss.Score{
 		Wallet:	addr2,
 		Scorer:	"balance_eth",
 		Value:	big.NewFloat(1),
 	}
-	mockScoreStore.EXPECT().UpsertScore(score1)
-	mockScoreStore.EXPECT().UpsertScore(score2)
+	scores := []*ss.Score{score1, score2}
+	mockScoreStore.EXPECT().UpsertScores(scores)
 
 	go func() {
 		// Wait until the main loop calls time.After (or timeout if

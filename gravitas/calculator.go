@@ -105,3 +105,14 @@ func (c *Calculator) Scores(visitFn func(id string, score *big.Float) error) err
 
 	return nil
 }
+
+// ScoresAll invokes the provided visitor function with all the vertices in the graph.
+func (c *Calculator) ScoresAll(visitFn func([]*bspgraph.Vertex) error) error {
+	vertices := make([]*bspgraph.Vertex, len(c.g.Vertices()))
+	i := 0
+	for _, vertex := range c.g.Vertices() {
+		vertices[i] = vertex
+		i++
+	}
+	return visitFn(vertices)
+}

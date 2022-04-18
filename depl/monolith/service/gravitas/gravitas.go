@@ -2,7 +2,6 @@ package gravitas
 
 import (
 	"context"
-	"math/big"
 	"io/ioutil"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
+	"github.com/moratsam/etherscan/bspgraph"
 	"github.com/moratsam/etherscan/depl/monolith/partition"
 	"github.com/moratsam/etherscan/gravitas"
 	ss "github.com/moratsam/etherscan/scorestore"
@@ -29,7 +29,7 @@ type GraphAPI interface {
 
 // ScoreStoreAPI defines a set of API methods for updating the Gravitas scores of wallets.
 type ScoreStoreAPI interface {
-	UpsertScore(score *ss.Score) error
+	UpsertScores(scores []*ss.Score) error
 	UpsertScorer(scorer *ss.Scorer) error
 }
 
@@ -164,7 +164,7 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 	scoreCalculationTime := svc.cfg.Clock.Now().Sub(tick)
 
 	tick = svc.cfg.Clock.Now()
-	if err := svc.calculator.Scores(svc.persistScore); err != nil {
+	if err := svc.calculator.ScoresAll(svc.persistScores); err != nil {
 		return err
 	}
 	scorePersistTime := svc.cfg.Clock.Now().Sub(tick)
@@ -179,19 +179,22 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 	return nil
 }
 
-func (svc *Service) persistScore(wallet string, value *big.Float) error {
-	score := &ss.Score{
-		Wallet:	wallet,
-		Scorer:	"balance_eth",
-		Value:	value,	
+func (svc *Service) persistScores(vertices []*bspgraph.Vertex) error {
+	scores := make([]*ss.Score, len(vertices))
+	for i, vertex := range vertices {
+		scores[i] = &ss.Score{
+			Wallet: vertex.ID(),
+			Scorer: "balance_eth",
+			Value: vertex.Value().(gravitas.VertexData).Value,
+		}
 	}
 
-	return svc.cfg.ScoreStoreAPI.UpsertScore(score)
+	return svc.cfg.ScoreStoreAPI.UpsertScores(scores)
 }
 
 type vertex struct {
-	Address string
-	Txs []*txgraph.Tx
+	address string
+	txs []*txgraph.Tx
 }
 
 // Loads wallets and their transactions into the graph.
@@ -253,11 +256,12 @@ func (svc *Service) loadWallets(fromAddr, toAddr string) error {
 // sends the address + txs data as a vertex to the addVertices.
 // If it encounters an error, it sends it to the errCh.
 func (svc *Service) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error) {
+	var addr string
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case addr := <-addrCh:
+		case addr = <-addrCh:
 			// Retrieve wallet's transactions.
 			txIt, err := svc.cfg.GraphAPI.WalletTxs(addr)
 			if err != nil {
@@ -279,7 +283,7 @@ func (svc *Service) fetchWalletTxs(ctx context.Context, addrCh <-chan string, ve
 			}
 			
 			// Send the vertex data to the vertexCh.
-			vertexCh <- vertex{Address: addr, Txs: txs}
+			vertexCh <- vertex{address: addr, txs: txs}
 		}
 	}
 }
@@ -303,7 +307,7 @@ func (svc *Service) addVertices(ctx context.Context, vertexCh <-chan vertex, wal
 		case v = <-vertexCh:
 			walletNumSeen++
 			// Add vertex
-			svc.calculator.AddVertex(v.Address, v.Txs)
+			svc.calculator.AddVertex(v.address, v.txs)
 		}
 	}
 }

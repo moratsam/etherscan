@@ -123,14 +123,14 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	}
 
 	// Retrieve a suitable scorestore implementation and plug it to the service configurations.
-	scoreStore, err := getScoreStore(*scoreStoreURI, logger)
+	scoreStoreAPI, err := getScoreStore(*scoreStoreURI, logger)
 	if err != nil {
 		logger.WithField("err", err).Error("get score store")
 		return nil, err
 	}
 
 	// Retrieve a suitable txgraph implementation and plug it into the service configurations.
-	txGraph, err := getTxGraph(*txGraphURI, logger)
+	txGraphAPI, err := getTxGraph(*txGraphURI, logger)
 	if err != nil {
 		logger.WithField("err", err).Error("get tx graph")
 		return nil, err
@@ -140,32 +140,32 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	var svcGroup service.Group
 
 	blockInserterCfg.ETHClient = ethClient
-	blockInserterCfg.GraphAPI	= txGraph
+	blockInserterCfg.GraphAPI	= txGraphAPI
 	blockInserterCfg.Logger		= logger.WithField("service", "block-inserter")
 	if svc, err = blockinserter.NewService(blockInserterCfg); err == nil {
+		/*
 		logger.Warn("SKIPPING blockinserter service")
 		_ = svc
-		/*
-		svcGroup = append(svcGroup, svc)
 		*/
+		svcGroup = append(svcGroup, svc)
 	} else {
 		return nil, err
 	}
 
-	frontendCfg.ScoreStoreAPI	= scoreStore
+	frontendCfg.ScoreStoreAPI	= scoreStoreAPI
 	frontendCfg.Logger			= logger.WithField("service", "front-end")
 	if svc, err = frontend.NewService(frontendCfg); err == nil {
+		/*
 		logger.Warn("SKIPPING frontend service")
 		_ = svc
-		/*
-		svcGroup = append(svcGroup, svc)
 		*/
+		svcGroup = append(svcGroup, svc)
 	} else {
 		return nil, err
 	}
 
-	gravitasCfg.GraphAPI 			= txGraph
-	gravitasCfg.ScoreStoreAPI		= scoreStore
+	gravitasCfg.GraphAPI 			= txGraphAPI
+	gravitasCfg.ScoreStoreAPI		= scoreStoreAPI
 	gravitasCfg.PartitionDetector	= partDet
 	gravitasCfg.Logger				= logger.WithField("service", "gravitas-calculator")
 	if svc, err = gravitas.NewService(gravitasCfg); err == nil {
@@ -175,14 +175,14 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	}
 
 	scannerCfg.ETHClient = ethClient
-	scannerCfg.GraphAPI	= txGraph
+	scannerCfg.GraphAPI	= txGraphAPI
 	scannerCfg.Logger		= logger.WithField("service", "scanner")
 	if svc, err = scanner.NewService(scannerCfg); err == nil {
+		/*
 		logger.Warn("SKIPPING scanner service")
 		_ = svc
-		/*
-		svcGroup = append(svcGroup, svc)
 		*/
+		svcGroup = append(svcGroup, svc)
 	} else {
 		return nil, err
 	}
@@ -190,13 +190,13 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	return svcGroup, nil
 }
 
-type scoreStore interface {
-	UpsertScore(score *ss.Score) error
+type scoreStoreAPI interface {
+	UpsertScores(scores []*ss.Score) error
 	UpsertScorer(scorer *ss.Scorer) error
 	Search(query ss.Query) (ss.ScoreIterator, error)
 }
 
-func getScoreStore(scoreStoreURI string, logger *logrus.Entry) (scoreStore, error) {
+func getScoreStore(scoreStoreURI string, logger *logrus.Entry) (scoreStoreAPI, error) {
 	if scoreStoreURI == "" {
 		return nil, xerrors.Errorf("score store URI must be specified with --score-store-uri")
 	}
@@ -218,7 +218,7 @@ func getScoreStore(scoreStoreURI string, logger *logrus.Entry) (scoreStore, erro
 	}
 }
 
-type txGraph interface {
+type txGraphAPI interface {
 	Blocks() (txgraph.BlockIterator, error)
 	InsertTxs(txs []*txgraph.Tx) error
 	UpsertBlock(block *txgraph.Block) error
@@ -227,7 +227,7 @@ type txGraph interface {
 	WalletTxs(address string) (txgraph.TxIterator, error)
 }
 
-func getTxGraph(txGraphURI string, logger *logrus.Entry) (txGraph, error) {
+func getTxGraph(txGraphURI string, logger *logrus.Entry) (txGraphAPI, error) {
 	if txGraphURI == "" {
 		return nil, xerrors.Errorf("tx graph URI must be specified with --tx-graph-uri")
 	}

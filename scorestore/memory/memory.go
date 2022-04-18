@@ -40,39 +40,41 @@ func NewInMemoryScoreStore() (*InMemoryScoreStore) {
 
 // Upserts a Score.
 // On conflict of (wallet, scorer), the value will be updated.
-func (ss *InMemoryScoreStore) UpsertScore(score *scorestore.Score) error {
+func (ss *InMemoryScoreStore) UpsertScores(scores []*scorestore.Score) error {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
-	// Create a copy of the score.
-	sCopy := new(scorestore.Score)
-	*sCopy = *score
+	for _, score := range scores {
+		// Create a copy of the score.
+		sCopy := new(scorestore.Score)
+		*sCopy = *score
 
-	// Check that the scorer exists.
-	if _, keyExists := ss.scorers[sCopy.Scorer]; !keyExists {
-		return xerrors.Errorf("upsert score: %w, %s", scorestore.ErrUnknownScorer, sCopy.Scorer)
-	}
-
-	// Check if the score wallet already exists in scorerWallets.
-	var exists bool
-	for _, wallet := range ss.scorerWallets[sCopy.Scorer] {
-		if wallet == sCopy.Wallet {
-			exists = true
-			break
+		// Check that the scorer exists.
+		if _, keyExists := ss.scorers[sCopy.Scorer]; !keyExists {
+			return xerrors.Errorf("upsert score: %w, %s", scorestore.ErrUnknownScorer, sCopy.Scorer)
 		}
-	}
-	// If it doesn't exist, add it.
-	if !exists {
-		ss.scorerWallets[sCopy.Scorer] = append(ss.scorerWallets[sCopy.Scorer], sCopy.Wallet)
-	}
 
-	// If the score wallet does not yet exists in walletScores, add it.
-	if _, keyExists := ss.walletScores[sCopy.Wallet]; !keyExists {
-		ss.walletScores[sCopy.Wallet] = make(map[string]*scorestore.Score)
-	}
+		// Check if the score wallet already exists in scorerWallets.
+		var exists bool
+		for _, wallet := range ss.scorerWallets[sCopy.Scorer] {
+			if wallet == sCopy.Wallet {
+				exists = true
+				break
+			}
+		}
+		// If it doesn't exist, add it.
+		if !exists {
+			ss.scorerWallets[sCopy.Scorer] = append(ss.scorerWallets[sCopy.Scorer], sCopy.Wallet)
+		}
 
-	// Update the walletScores with the score.
-	ss.walletScores[sCopy.Wallet][sCopy.Scorer] = sCopy
+		// If the score wallet does not yet exists in walletScores, add it.
+		if _, keyExists := ss.walletScores[sCopy.Wallet]; !keyExists {
+			ss.walletScores[sCopy.Wallet] = make(map[string]*scorestore.Score)
+		}
+
+		// Update the walletScores with the score.
+		ss.walletScores[sCopy.Wallet][sCopy.Scorer] = sCopy
+	}
 
 	return nil
 }

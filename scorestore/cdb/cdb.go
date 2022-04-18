@@ -2,6 +2,8 @@ package cdb
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/lib/pq"
 	"golang.org/x/xerrors"
@@ -10,8 +12,6 @@ import (
 )
 
 var (
-	upsertScoreQuery = `insert into score(wallet, scorer, value) values ($1, $2, $3) on conflict (wallet, scorer) do update set value=$3`
-
 	upsertScorerQuery = `insert into scorer(name) values ($1) on conflict (name) do nothing`
 
 	scoreQuery = `select wallet,scorer,value from score where scorer=$1`
@@ -47,19 +47,46 @@ func (ss *CDBScoreStore) Close() error {
 	return ss.db.Close()
 }
 
-// Upserts a Score.
-// On conflict of (wallet, scorer), the value will be updated.
-func (ss *CDBScoreStore) UpsertScore(score *scorestore.Score) error {
-	if _, err := ss.db.Exec(
-		upsertScoreQuery, 
-		score.Wallet, 
-		score.Scorer, 
-		score.Value.String(), 
-	); err != nil {
+func (g *CDBScoreStore) bulkUpsertScores(scores []*scorestore.Score) error {
+	if len(scores) == 0 {
+		return nil
+	}
+	numArgs := 3 // Number of columns in the score table.
+	valueArgs := make([]interface{}, 0, numArgs * len(scores))
+	valueStrings := make([]string, 0, len(scores))
+
+	for i,score := range scores {
+		valueArgs = append(valueArgs, score.Wallet)
+		valueArgs = append(valueArgs, score.Scorer)
+		valueArgs = append(valueArgs, score.Value.String())
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", i*numArgs+1, i*numArgs+2, i*numArgs+3))
+	}
+
+	stmt := fmt.Sprintf(`INSERT INTO score(wallet, scorer, value) VALUES %s ON CONFLICT (wallet, scorer) DO UPDATE SET value=EXCLUDED.value;`, strings.Join(valueStrings, ","))
+	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
 		if isForeignKeyViolationError(err) {
-			return xerrors.Errorf("upsert score: %w, %s", scorestore.ErrUnknownScorer, score.Scorer)
+			return xerrors.Errorf("upsert score: %w, %s", scorestore.ErrUnknownScorer, scores[0].Scorer)
 		}
-		return xerrors.Errorf("upsert score: %w", err)
+		return xerrors.Errorf("upsert scores: %w", err)
+	}
+	return nil
+}
+
+// Upserts Scores.
+// On conflict of (wallet, scorer), the value will be updated.
+func (ss *CDBScoreStore) UpsertScores(scores []*scorestore.Score) error {
+	// Upsert scores in batches.
+	batchSize := 500
+	var i int
+	for i=0; i+batchSize<len(scores); i+=batchSize {
+		if err := ss.bulkUpsertScores(scores[i:i+batchSize]); err != nil {
+			return err
+		}
+	}
+	if i < len(scores) {
+		if err := ss.bulkUpsertScores(scores[i:]); err != nil {
+			return err
+		}
 	}
 	return nil
 }

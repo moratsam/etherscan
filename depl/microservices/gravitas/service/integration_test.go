@@ -88,7 +88,7 @@ func (s *DistributedGravitasTestSuite) resetScores(c *gc.C, graphInstance txgrap
 	for scoreIt.Next(){
 		score := scoreIt.Score()
 		score.Value = big.NewFloat(0)
-		err := scoreStoreInstance.UpsertScore(score)
+		err := scoreStoreInstance.UpsertScores([]*ss.Score{score})
 		c.Assert(err, gc.IsNil)
 	}
 }

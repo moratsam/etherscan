@@ -26,9 +26,7 @@ update set processed=$2 returning processed`
 
   walletsInPartitionQuery = `select address from wallet where address >= $1 and address < $2`
 
-  walletTxsQuery = `
-select hash, status, block, timestamp, "from", "to", value, transaction_fee, data 
-from tx where "from"=$1 or "to"=$1`
+  walletTxsQuery = `select * from tx where "from"=$1 or "to"=$1`
 
 	// Compile-time check for ensuring CDBGraph implements Graph.
 	_ graph.Graph = (*CDBGraph)(nil)

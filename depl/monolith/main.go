@@ -143,7 +143,11 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	blockInserterCfg.GraphAPI	= txGraph
 	blockInserterCfg.Logger		= logger.WithField("service", "block-inserter")
 	if svc, err = blockinserter.NewService(blockInserterCfg); err == nil {
+		logger.Warn("SKIPPING blockinserter service")
+		_ = svc
+		/*
 		svcGroup = append(svcGroup, svc)
+		*/
 	} else {
 		return nil, err
 	}
@@ -151,7 +155,11 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	frontendCfg.ScoreStoreAPI	= scoreStore
 	frontendCfg.Logger			= logger.WithField("service", "front-end")
 	if svc, err = frontend.NewService(frontendCfg); err == nil {
+		logger.Warn("SKIPPING frontend service")
+		_ = svc
+		/*
 		svcGroup = append(svcGroup, svc)
+		*/
 	} else {
 		return nil, err
 	}

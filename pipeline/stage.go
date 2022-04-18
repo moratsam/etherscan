@@ -131,7 +131,6 @@ stop:
 				break stop
 			}
 			
-			// TODO is it necessary to capture the token and pass it inside?
 			go func(payloadIn Payload) {
 				defer func() { p.tokenPool <- struct{}{} }()
 

@@ -170,7 +170,8 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 	scorePersistTime := svc.cfg.Clock.Now().Sub(tick)
 
 	svc.cfg.Logger.WithFields(logrus.Fields{
-		"processed_wallets":			len(svc.calculator.Graph().Vertices()),
+		"processed_wallets":      	svc.calculator.Graph().Aggregator("wallet_count").Get(),
+		"processed_transactions":	svc.calculator.Graph().Aggregator("tx_count").Get().(int)/2,
 		"graph_populate_time":		graphPopulateTime.String(),
 		"score_calculation_time":	scoreCalculationTime.String(),
 		"score_persist_time":		scorePersistTime.String(),

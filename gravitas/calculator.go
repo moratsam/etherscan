@@ -7,6 +7,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/moratsam/etherscan/bspgraph"
+	"github.com/moratsam/etherscan/bspgraph/aggregator"
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )
 
@@ -93,7 +94,10 @@ func (c *Calculator) Executor() *bspgraph.Executor {
 
 // registerAggregators creates and registers the aggregator instances that we
 // need to run the Gravitas calculation algorithm.
-func (c *Calculator) registerAggregators() {}
+func (c *Calculator) registerAggregators() {
+	c.g.RegisterAggregator("wallet_count", new(aggregator.IntAccumulator))
+	c.g.RegisterAggregator("tx_count", new(aggregator.IntAccumulator))
+}
 
 // Scores invokes the provided visitor function for each vertex in the graph.
 func (c *Calculator) Scores(visitFn func(id string, score *big.Float) error) error {

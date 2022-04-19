@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"io/ioutil"
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -175,7 +176,7 @@ func (n *WorkerNode) CompleteJob(_ job.Details) error {
 	scorePersistTime := time.Since(tick)
 
 	n.cfg.Logger.WithFields(logrus.Fields{
-		"processed_wallets":			len(n.calculator.Graph().Vertices()),
+		"processed_wallets":      	fmt.Sprintf("%d", len(n.calculator.Graph().Vertices())),
 		"graph_populate_time":		n.graphPopulateTime.String(),
 		"score_calculation_time":	scoreCalculationTime.String(),
 		"score_persist_time":		scorePersistTime.String(),
@@ -210,7 +211,7 @@ type vertex struct {
 func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
-	numWorkers := 10
+	numWorkers := 30
 	vertexCh := make(chan vertex, numWorkers)
 	walletNumCh := make(chan int, 1)
 	doneCh := make(chan struct{}, 1)

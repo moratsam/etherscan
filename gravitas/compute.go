@@ -23,7 +23,13 @@ type VertexData struct {
 func makeComputeFunc() bspgraph.ComputeFunc {
 	return func(g *bspgraph.Graph, v *bspgraph.Vertex, _ message.Iterator) error {
 		superstep := g.Superstep()
-		if superstep > 1 {
+
+		// Use an aggregator to count the number of vertices in the graph.
+		if superstep == 0 {
+			walletCountAgg := g.Aggregator("wallet_count")
+			walletCountAgg.Aggregate(1)
+			return nil
+		} else if  superstep > 1 {
 			return xerrors.New("everything should be basta in first step")
 		}
 
@@ -42,6 +48,9 @@ func makeComputeFunc() bspgraph.ComputeFunc {
 				sum = sum.Sub(sum, new(big.Float).SetInt(tx.TransactionFee))
 			}
 		}
+
+		txCountAgg := g.Aggregator("tx_count")
+		txCountAgg.Aggregate(len(vData.Txs))
 
 		vData.Value = sum
 		v.SetValue(vData)

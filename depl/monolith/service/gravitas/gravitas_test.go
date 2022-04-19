@@ -132,6 +132,7 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 		Value:	big.NewFloat(1),
 	}
 	scores := []*ss.Score{score1, score2}
+	// TODO this sometimes fails because the two scores are reversed.
 	mockScoreStore.EXPECT().UpsertScores(scores)
 
 	go func() {
@@ -149,6 +150,8 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	// Enter the blocking main loop
 	err = svc.Run(ctx)
 	c.Assert(err, gc.IsNil)
+	c.Assert(svc.calculator.Graph().Aggregator("wallet_count").Get(), gc.Equals, 2)
+	c.Assert(svc.calculator.Graph().Aggregator("tx_count").Get().(int)/2, gc.Equals, 1)
 }
 
 func (s *GravitasTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
@@ -159,7 +162,7 @@ func (s *GravitasTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
 
 	cfg := Config{
 		GraphAPI:          mocks.NewMockGraphAPI(ctrl),
-		ScoreStoreAPI:          mocks.NewMockScoreStoreAPI(ctrl),
+		ScoreStoreAPI:     mocks.NewMockScoreStoreAPI(ctrl),
 		PartitionDetector: partition.Fixed{Partition: 1, NumPartitions: 2},
 		Clock:             clk,
 		ComputeWorkers:    1,

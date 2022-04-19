@@ -49,15 +49,17 @@ func (s *DistributedGravitasTestSuite) TearDownTest(c *gc.C) {
 }
 
 func (s *DistributedGravitasTestSuite) TestVerifyDistributedCalculationsAreCorrect(c *gc.C) {
-	graphInstance, scoreStoreInstance := s.generateGraph(c, 2048, 10)
+	numWallets, numTxs := 1000, 8000
+	graphInstance, scoreStoreInstance := s.generateGraph(c, numWallets, numTxs)
 
 	// Run the calculations on a single instance so we can get a baseline
 	// for our comparisons.
-	singleResults := s.runStandaloneCalculator(c, graphInstance)
+	singleResults := s.runStandaloneCalculator(c, graphInstance, numWallets, numTxs)
+	fmt.Println(singleResults)
 
 	// Reset the scores and run in distributed mode
 	s.resetScores(c, graphInstance, scoreStoreInstance)
-	distributedResults := s.runDistributedCalculator(c, graphInstance, scoreStoreInstance, 42)
+	distributedResults := s.runDistributedCalculator(c, graphInstance, scoreStoreInstance, 42, numWallets, numTxs)
 
 	// Compare results
 	deltaTolerance := 0.0001
@@ -96,7 +98,7 @@ func (s *DistributedGravitasTestSuite) resetScores(c *gc.C, graphInstance txgrap
 // runStandaloneCalculator processes the txgraph using a single calculator
 // instance with only one worker and returns back the calculated scores as a
 // map.
-func (s *DistributedGravitasTestSuite) runStandaloneCalculator(c *gc.C, graphInstance txgraph.Graph) map[string]float64 {
+func (s *DistributedGravitasTestSuite) runStandaloneCalculator(c *gc.C, graphInstance txgraph.Graph, numWallets, numTxs int) map[string]float64 {
 	calc, err := gravitas.NewCalculator(gravitas.Config{ComputeWorkers: 1})
 	c.Assert(err, gc.IsNil)
 
@@ -114,6 +116,8 @@ func (s *DistributedGravitasTestSuite) runStandaloneCalculator(c *gc.C, graphIns
 		return nil
 	})
 	c.Assert(err, gc.IsNil)
+	c.Assert(calc.Graph().Aggregator("wallet_count").Get(), gc.Equals, numWallets)
+	//c.Assert(calc.Graph().Aggregator("tx_count").Get(), gc.Equals, numTxs)
 
 	return resMap
 }
@@ -132,16 +136,7 @@ func (s *DistributedGravitasTestSuite) generateGraph(c *gc.C, numWallets, numTxs
 	c.Assert(err, gc.IsNil)
 
 	// Setup txs.
-	rand.Seed(73)
-	txs := make([]*txgraph.Tx, 0)
-	for i:=0; i<numTxs; i++ {
-		txs = append(txs, createTx(
-			createAddressFromInt(rand.Intn(numWallets)),
-			createAddressFromInt(rand.Intn(numWallets)),
-			int64(rand.Intn(10000000)),
-			int64(rand.Intn(10000000)),
-		))
-	}
+	txs := createTxs(numWallets, numTxs)
 	err = graphInstance.InsertTxs(txs)
 	c.Assert(err, gc.IsNil)
 
@@ -153,7 +148,7 @@ func (s *DistributedGravitasTestSuite) generateGraph(c *gc.C, numWallets, numTxs
 
 // runDistributedCalculator processes the txgraph using the distributed calculator
 // and returns back the calculated scores as a map.
-func (s *DistributedGravitasTestSuite) runDistributedCalculator(c *gc.C, graphInstance txgraph.Graph, scoreStoreInstance ss.ScoreStore, numWorkers int) map[string]float64{
+func (s *DistributedGravitasTestSuite) runDistributedCalculator(c *gc.C, graphInstance txgraph.Graph, scoreStoreInstance ss.ScoreStore, numWorkers, numWallets, numTxs int) map[string]float64{
 	var (
 		ctx, cancelFn = context.WithCancel(context.TODO())
 		clk           = testclock.NewClock(time.Now())
@@ -198,10 +193,14 @@ func (s *DistributedGravitasTestSuite) runDistributedCalculator(c *gc.C, graphIn
 
 	// Wait till the master goes back to the main loop and stop it
 	c.Assert(clk.WaitAdvance(time.Second, 60*time.Second, 1), gc.IsNil)
+	w, t := master.Aggregates()
+	_ = t
+	c.Assert(w, gc.Equals, numWallets)
 	cancelFn()
 
 	// Wait for master and workers to shut down.
 	wg.Wait()
+
 
 	return s.extractScores(c, scoreStoreInstance)
 }
@@ -273,11 +272,25 @@ func createAddressFromInt(addressInt int) string {
 	return x
 }
 
-func createTx(from, to string, value, transactionFee int64) *txgraph.Tx {
-	return &txgraph.Tx{
-		From: 				from,
-		To: 					to,
-		Value: 				big.NewInt(value),
-		TransactionFee:	big.NewInt(transactionFee),
+func createTxs(numWallets, numTxs int) []*txgraph.Tx {
+	rand.Seed(time.Now().UnixNano())
+	txs := make([]*txgraph.Tx, 0)
+	for i:=0; i<numTxs; i++ {
+		hash := fmt.Sprintf("%x", rand.Intn(i+1)) // convert to hex string
+		padding := 65-len(hash)
+		for i:=0; i<padding; i++ {
+			hash = "0" + hash
+		}
+
+		tx := &txgraph.Tx{
+			Hash:					hash,
+			From: 				createAddressFromInt(rand.Intn(numWallets)),
+			To: 					createAddressFromInt(rand.Intn(numWallets)),
+			Value:				big.NewInt(int64(rand.Intn(10000000))),
+			TransactionFee:	big.NewInt(int64(rand.Intn(10000000))),
+		}
+
+		txs = append(txs, tx)
 	}
+	return txs
 }

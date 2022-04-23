@@ -11,3 +11,10 @@ metadata:
   name: etherscan-data
   labels:
     role: etherscan-data
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    role: monitoring

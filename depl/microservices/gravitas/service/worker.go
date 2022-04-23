@@ -211,7 +211,7 @@ type vertex struct {
 func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
-	numWorkers := 30
+	numWorkers := 10
 	vertexCh := make(chan vertex, numWorkers)
 	walletNumCh := make(chan int, 1)
 	doneCh := make(chan struct{}, 1)

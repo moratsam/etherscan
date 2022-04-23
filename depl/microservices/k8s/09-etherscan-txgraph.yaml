@@ -44,6 +44,6 @@ spec:
           name: pprof
         resources:
           limits:
-            cpu: "1"
+            cpu: "2"
           requests:
-            cpu: 50m
+            cpu: 100m

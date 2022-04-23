@@ -13,6 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
@@ -34,13 +37,34 @@ import (
 var (
 	appName 	= "etherscan"
 	appSha	= "populated-later"
+	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "etherscan_lmao_cnt",
+		Help: "Test lmao",
+	})
 )
+
+func recordMetrics() {
+	go func() {
+		for {
+			opsProcessed.Inc()
+			time.Sleep(2 * time.Second)
+		}
+	}()
+}
 
 func main() {
 	// Expose pprof at localhost:6060/debug/pprof
 	go func() {
 		http.ListenAndServe(":6060", nil)
 	}()
+
+	recordMetrics()
+
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		http.ListenAndServe(":31933", nil)
+	}()
+
 
 	host, _ := os.Hostname()
 	rootLogger := logrus.New()
@@ -178,11 +202,11 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	scannerCfg.GraphAPI	= txGraphAPI
 	scannerCfg.Logger		= logger.WithField("service", "scanner")
 	if svc, err = scanner.NewService(scannerCfg); err == nil {
-		/*
 		logger.Warn("SKIPPING scanner service")
 		_ = svc
-		*/
+		/*
 		svcGroup = append(svcGroup, svc)
+		*/
 	} else {
 		return nil, err
 	}

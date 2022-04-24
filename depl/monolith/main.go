@@ -13,9 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
@@ -37,20 +34,7 @@ import (
 var (
 	appName 	= "etherscan"
 	appSha	= "populated-later"
-	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "etherscan_lmao_cnt",
-		Help: "Test lmao",
-	})
 )
-
-func recordMetrics() {
-	go func() {
-		for {
-			opsProcessed.Inc()
-			time.Sleep(2 * time.Second)
-		}
-	}()
-}
 
 func main() {
 	// Expose pprof at localhost:6060/debug/pprof
@@ -58,8 +42,7 @@ func main() {
 		http.ListenAndServe(":6060", nil)
 	}()
 
-	recordMetrics()
-
+	// Expose prometheus at localhost:31933/metrics
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
 		http.ListenAndServe(":31933", nil)

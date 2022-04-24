@@ -2,15 +2,23 @@ package scanner
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/moratsam/etherscan/txgraph/graph"
 	"github.com/moratsam/etherscan/pipeline"
 )
 
 //go:generate mockgen -package mocks -destination mocks/mocks.go github.com/moratsam/etherscan/scanner ETHClient,Graph
+
+var promScannerCnt = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "etherscan_scanner_cnt",
+		Help: "Counts blocks consumed by the scanner service",
+	})
+
 
 //ETHClient is implemented by objects that can fetch an eth block by its number.
 type ETHClient interface {
@@ -113,6 +121,7 @@ type countingSink struct {
 // on the payload, which ensures the payload is returned to the payloadPool.
 func (si *countingSink) Consume(_ context.Context, p pipeline.Payload) error {
 	si.count++
+	promScannerCnt.Inc()
 
 	block := &graph.Block{
 		Number: p.(*scannerPayload).BlockNumber,
@@ -122,7 +131,6 @@ func (si *countingSink) Consume(_ context.Context, p pipeline.Payload) error {
 		return err
 	}
 
-	fmt.Println("scanner consumed block: ", block.Number)
 	return nil
 }
 

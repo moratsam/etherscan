@@ -4,9 +4,13 @@ import (
 	"context"
 	"io/ioutil"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
@@ -17,6 +21,11 @@ import (
 	ss "github.com/moratsam/etherscan/scorestore"
 	txgraph "github.com/moratsam/etherscan/txgraph/graph"
 )
+
+var promGravitasLoadWalletsCnt = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "etherscan_gravitas_load_wallets_cnt",
+		Help: "Counts wallets loaded by gravitas calculator",
+	})
 
 // GraphAPI defines as set of API methods for fetching the wallets and their transactions
 // from the wallet graph.
@@ -46,8 +55,12 @@ type WorkerConfig struct {
 	// An API for updating the Gravitas scores of wallets.
 	ScoreStoreAPI ScoreStoreAPI
 
+	// The number of workers that will concurrently fetch wallet txs from GraphAPI
+	// and load them into the BSP graph.
+	TxFetchers int
+
 	// The number of workers to spin up for computing Gravitas scores. If
-	// not specified, a default value of 1 will be used instead.
+	// not specified, a default value of number of CPUs will be used instead.
 	ComputeWorkers int
 
 	// The logger to use. If not defined an output-discarding logger will
@@ -65,6 +78,9 @@ func (cfg *WorkerConfig) validate() error {
 	}
 	if cfg.ScoreStoreAPI == nil {
 		err = multierror.Append(err, xerrors.Errorf("scorestore API has not been provided"))
+	}
+	if cfg.TxFetchers <= 0 {
+		err = multierror.Append(err, xerrors.Errorf("invalid value for tx fetchers"))
 	}
 	if cfg.ComputeWorkers <= 0 {
 		err = multierror.Append(err, xerrors.Errorf("invalid value for compute workers"))
@@ -207,17 +223,22 @@ type vertex struct {
 }
 
 // Loads wallets and their transactions into the graph.
-// To speed things up, <numWorkers> routines are simultaneously fetching txs.
+// To speed things up, <n.cfg.TxFetchers> routines are simultaneously fetching txs.
 func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
+	// Expose prometheus at localhost:31933/metrics
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		http.ListenAndServe(":31933", nil)
+	}()
+
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
-	numWorkers := 10
-	vertexCh := make(chan vertex, numWorkers)
+	vertexCh := make(chan vertex, n.cfg.TxFetchers)
 	walletNumCh := make(chan int, 1)
 	doneCh := make(chan struct{}, 1)
-	addrCh := make(chan string, numWorkers)
+	addrCh := make(chan string, n.cfg.TxFetchers)
 	errCh := make(chan error, 1)
-	for i:=0; i<numWorkers; i++ {
+	for i:=0; i<n.cfg.TxFetchers; i++ {
 		go n.fetchWalletTxs(ctx, addrCh, vertexCh, errCh)
 	}
 
@@ -231,6 +252,7 @@ func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
 	}
 	walletNum := 0
 	for walletIt.Next() {
+		promGravitasLoadWalletsCnt.Inc()
 		walletNum++
 		wallet := walletIt.Wallet()
 		select {

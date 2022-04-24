@@ -11,6 +11,19 @@ running:
 export CDB_DSN='postgresql://root@localhost:26257/etherscan?sslmode=disable'
 endef
 
+#minikube:
+#minikube start --network-plugin=cni --cni=calico
+#minikube addons enable insecure-registry
+# Write to /etc/docker/daemon.json
+#{
+#  "storage-driver": "overlay2",
+#  "insecure-registries": ["192.168.39.204:5000"] #this is $(minikube ip)
+#}
+# systemctl restart docker
+# prometheus link: $(minikube --namespace monitoring service prometheus-service --url)/config
+# grafana link: $(minikube --namespace monitoring service grafana-service --url) admin admin
+
+
 export dsn_missing_error
 
 CDB_IMAGE = cdb-schema

@@ -5,6 +5,6 @@ Resources:
     cpu: "2"
     memory: "2G"
   requests:
-    cpu: "1"
+    cpu: "2"
     memory: "1G"
 Storage: "40G"

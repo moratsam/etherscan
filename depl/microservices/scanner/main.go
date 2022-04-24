@@ -150,7 +150,7 @@ func getTxGraphAPI(ctx context.Context, txGraphAPI string) (*txgraphapi.TxGraphC
 		return nil, xerrors.Errorf("tx graph API must be specified with --tx-graph-api")
 	}
 
-	dialCtx, cancelFn := context.WithTimeout(ctx, 5*time.Second)
+	dialCtx, cancelFn := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFn()
 	txGraphConn, err := grpc.DialContext(dialCtx, txGraphAPI, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {

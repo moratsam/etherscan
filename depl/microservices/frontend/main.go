@@ -132,6 +132,7 @@ func runMain(appCtx *cli.Context) error {
 			_ = pprofListener.Close()
 			cancelFn()
 		case <-ctx.Done():
+			_ = pprofListener.Close()
 		}
 	}()
 

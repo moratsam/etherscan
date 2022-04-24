@@ -42,19 +42,13 @@ spec:
         image: localhost:5000/etherscan-gravitas:latest
         args:
           - "-mode=master"
-          - "-gravitas-update-interval=10s"
+          - "-gravitas-update-interval=6s"
           - "-master-port=8080"
-          - "-worker-acquire-timeout=10s"
         ports:
         - containerPort: 8080
           name: grpc
         - containerPort: 6060
           name: pprof
-        resources:
-          limits:
-            cpu: "25m"
-          requests:
-            cpu: 25m
 ---
 # Deploy two worker pods
 apiVersion: apps/v1
@@ -85,13 +79,9 @@ spec:
           - "-mode=worker"
           - "-master-endpoint=gravitas-master:8080"
           - "-gravitas-num-workers=4"
+          - "-gravitas-tx-fetchers=15"
           - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
           - "-score-store-api=etherscan-scorestore.etherscan-data:8080"
         ports:
         - containerPort: 6060
           name: pprof
-        resources:
-          limits:
-            cpu: 1
-          requests:
-            cpu: 100m

@@ -46,8 +46,3 @@ spec:
           name: grpc
         - containerPort: 6060
           name: pprof
-        resources:
-          limits:
-            cpu: "1"
-          requests:
-            cpu: 50m

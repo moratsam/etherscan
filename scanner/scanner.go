@@ -20,7 +20,6 @@ var promScannerCnt = promauto.NewCounter(prometheus.CounterOpts{
 		Help: "Counts blocks consumed by the scanner service",
 	})
 
-
 //ETHClient is implemented by objects that can fetch an eth block by its number.
 type ETHClient interface {
 	BlockByNumber(number int) (*types.Block, error)

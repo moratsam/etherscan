@@ -93,6 +93,7 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	flag.IntVar(&frontendCfg.ResultsPerPage, "frontend-results-per-page", 30, "The number of entries for each search result page")
 
 	// gravitas
+	flag.IntVar(&gravitasCfg.TxFetchers, "gravitas-tx-fetchers", 5, "The number of workers that will concurrently fetch wallet txs and load them into BSP graph")
 	flag.IntVar(&gravitasCfg.ComputeWorkers, "gravitas-num-workers", runtime.NumCPU(), "The number of workers to use for calculating gravitas scores (defaults to number of CPUs")
 	flag.DurationVar(&gravitasCfg.UpdateInterval, "gravitas-update-interval", 1*time.Minute, "The time between subsequent gravitas score updates")
 

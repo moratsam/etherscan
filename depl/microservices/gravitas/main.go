@@ -66,7 +66,7 @@ func makeApp() *cli.App {
 		cli.DurationFlag{
 			Name:	"master-dial-timeout",
 			EnvVar: "MASTER_DIAL_TIMEOUT",
-			Value:  10 * time.Second,
+			Value:  25 * time.Second,
 			Usage:  "The timeout for establishing a connection to the master node (worker mode)",
 		},
 		cli.IntFlag{
@@ -83,15 +83,21 @@ func makeApp() *cli.App {
 		},
 		cli.IntFlag{
 			Name:	"min-workers-for-update",
-			Value:  0,
+			Value:  1,
 			EnvVar: "MIN_WORKERS_FOR_UPDATE",
 			Usage:  "The minimum number of workers that must be connected before making a new pass; 0 indicates that at least one worker is required (master mode)",
 		},
 		cli.DurationFlag{
 			Name:	"worker-acquire-timeout",
-			Value:  0,
+			Value:  25*time.Second,
 			EnvVar: "WORKER_ACQUIRE_TIMEOUT",
 			Usage:  "The time that the master waits for the requested number of workers to be connected before skipping a pass (master mode)",
+		},
+		cli.IntFlag{
+			Name:	"gravitas-tx-fetchers",
+			Value:  5,
+			EnvVar: "GRAVITAS_TX_FETCHERS",
+			Usage:  "The number of workers that will concurrently fetch wallet txs and load them into BSP graph",
 		},
 		cli.IntFlag{
 			Name:	"gravitas-num-workers",
@@ -134,11 +140,11 @@ func runMain(appCtx *cli.Context) error {
 	switch appCtx.String("mode") {
 	case "master":
 		if serviceRunner, err = service.NewMasterNode(service.MasterConfig{
-			ListenAddress:		  fmt.Sprintf(":%d", appCtx.Int("master-port")),
-			UpdateInterval:		 appCtx.Duration("gravitas-update-interval"),
-			MinWorkers:			  appCtx.Int("min-workers-for-update"),
-			WorkerAcquireTimeout: appCtx.Duration("worker-acquire-timeout"),
-			Logger:					logger,
+			ListenAddress:				fmt.Sprintf(":%d", appCtx.Int("master-port")),
+			UpdateInterval:			appCtx.Duration("gravitas-update-interval"),
+			MinWorkers:					appCtx.Int("min-workers-for-update"),
+			WorkerAcquireTimeout:	appCtx.Duration("worker-acquire-timeout"),
+			Logger:						logger,
 		}); err != nil {
 			return err
 		}
@@ -153,6 +159,7 @@ func runMain(appCtx *cli.Context) error {
 			MasterDialTimeout:	appCtx.Duration("master-dial-timeout"),
 			GraphAPI:				txGraphAPI,
 			ScoreStoreAPI:			scoreStoreAPI,
+			TxFetchers:				appCtx.Int("gravitas-tx-fetchers"),
 			ComputeWorkers:	 	appCtx.Int("gravitas-num-workers"),
 			Logger:					logger,
 		}); err != nil {
@@ -197,6 +204,7 @@ func runMain(appCtx *cli.Context) error {
 			_ = pprofListener.Close()
 			cancelFn()
 		case <-ctx.Done():
+			_ = pprofListener.Close()
 		}
 	}()
 
@@ -213,7 +221,7 @@ func getAPIs(ctx context.Context, scoreStoreAPI, txGraphAPI string) (*ssapi.Scor
 		return nil, nil, xerrors.Errorf("tx graph API must be specified with --tx-graph-api")
 	}
 
-	dialCtx, cancelFn := context.WithTimeout(ctx, 5*time.Second)
+	dialCtx, cancelFn := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFn()
 	scoreStoreConn, err := grpc.DialContext(dialCtx, scoreStoreAPI, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -221,7 +229,7 @@ func getAPIs(ctx context.Context, scoreStoreAPI, txGraphAPI string) (*ssapi.Scor
 	}
 	scoreStoreCli := ssapi.NewScoreStoreClient(ctx, protossapi.NewScoreStoreClient(scoreStoreConn))
 
-	dialCtx, cancelFn = context.WithTimeout(ctx, 5*time.Second)
+	dialCtx, cancelFn = context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFn()
 	txGraphConn, err := grpc.DialContext(dialCtx, txGraphAPI, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {

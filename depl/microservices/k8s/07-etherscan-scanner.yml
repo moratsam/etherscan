@@ -30,7 +30,7 @@ spec:
     matchLabels:
       app: etherscan
       component: etherscan-scanner-instance
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:

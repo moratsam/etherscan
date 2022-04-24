@@ -48,8 +48,12 @@ type Config struct {
 	// the default wall-clock will be used instead.
 	Clock clock.Clock
 
+	// The number of workers that will concurrently fetch wallet txs from GraphAPI
+	// and load them into the BSP graph.
+	TxFetchers int
+
 	// The number of workers to spin up for computing Gravitas scores. If
-	// not specified, a default value of 1 will be used instead.
+	// not specified, a default value of number of CPUs will be used instead.
 	ComputeWorkers int
 
 	// The time between subsequent gravitas calculation passes.
@@ -73,6 +77,9 @@ func (cfg *Config) validate() error {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.WallClock
+	}
+	if cfg.TxFetchers <= 0 {
+		err = multierror.Append(err, xerrors.Errorf("invalid value for tx fetchers"))
 	}
 	if cfg.ComputeWorkers <= 0 {
 		err = multierror.Append(err, xerrors.Errorf("invalid value for compute workers"))
@@ -199,17 +206,16 @@ type vertex struct {
 }
 
 // Loads wallets and their transactions into the graph.
-// To speed things up, <numWorkers> routines are simultaneously fetching txs.
+// To speed things up, <svc.cfg.TxFetchers> routines are simultaneously fetching txs.
 func (svc *Service) loadWallets(fromAddr, toAddr string) error {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
-	numWorkers := 10
-	vertexCh := make(chan vertex, numWorkers)
+	vertexCh := make(chan vertex, svc.cfg.TxFetchers)
 	walletNumCh := make(chan int, 1)
 	doneCh := make(chan struct{}, 1)
-	addrCh := make(chan string, numWorkers)
+	addrCh := make(chan string, svc.cfg.TxFetchers)
 	errCh := make(chan error, 1)
-	for i:=0; i<numWorkers; i++ {
+	for i:=0; i<svc.cfg.TxFetchers; i++ {
 		go svc.fetchWalletTxs(ctx, addrCh, vertexCh, errCh)
 	}
 

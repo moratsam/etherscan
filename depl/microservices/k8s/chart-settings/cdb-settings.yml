@@ -2,7 +2,7 @@
 # https://github.com/helm/charts/tree/master/stable/cockroachdb
 Resources:
   limits:
-    cpu: "4"
+    cpu: "2"
     memory: "2G"
   requests:
     cpu: "1"

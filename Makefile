@@ -112,29 +112,35 @@ k8s-cdb-connect:
 	@kubectl run -it --rm cockroach-client --image=cockroachdb/cockroach --restart=Never -- sql --insecure --host=cdb-cockroachdb-public.etherscan-data
 
 k8s-microservices-delete:
-	@kubectl delete -f depl/microservices/k8s/02-cdb-schema.yaml
-	@kubectl delete -f depl/microservices/k8s/03-net-policy.yaml
-	@kubectl delete -f depl/microservices/k8s/04-etherscan-blockinserter.yaml
-	@kubectl delete -f depl/microservices/k8s/05-etherscan-frontend.yaml
-	@kubectl delete -f depl/microservices/k8s/06-etherscan-gravitas.yaml
-	@kubectl delete -f depl/microservices/k8s/07-etherscan-scanner.yaml
-	@kubectl delete -f depl/microservices/k8s/08-etherscan-scorestore.yaml
-	@kubectl delete -f depl/microservices/k8s/09-etherscan-txgraph.yaml
-	#@kubectl delete -f depl/microservices/k8s/01-namespaces.yaml
+	@kubectl delete -f depl/microservices/k8s/02-cdb-schema.yml
+	@kubectl delete -f depl/microservices/k8s/03-net-policy.yml
+	@kubectl delete -f depl/microservices/k8s/04-etherscan-blockinserter.yml
+	@kubectl delete -f depl/microservices/k8s/05-etherscan-frontend.yml
+	@kubectl delete -f depl/microservices/k8s/06-etherscan-gravitas.yml
+	@kubectl delete -f depl/microservices/k8s/07-etherscan-scanner.yml
+	@kubectl delete -f depl/microservices/k8s/08-etherscan-scorestore.yml
+	@kubectl delete -f depl/microservices/k8s/09-etherscan-txgraph.yml
+	@kubectl delete -f depl/microservices/k8s/10-prometheus.yml
+	@kubectl delete -f depl/microservices/k8s/11-grafana-dashboards.yml
+	@kubectl delete -f depl/microservices/k8s/12-grafana.yml
+	#@kubectl delete -f depl/microservices/k8s/01-namespaces.yml
 	#@helm -n=etherscan-data uninstall cdb
 
 k8s-microservices-deploy:
-	#@helm install cdb --namespace=etherscan-data --values depl/monolith/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
+	#@helm install cdb --namespace=etherscan-data --values depl/monolith/k8s/chart-settings/cdb-settings.yml stable/cockroachdb
 	@kubectl apply -f depl/microservices/k8s
 
 k8s-monolith-delete:
-	@kubectl delete -f depl/monolith/k8s/03-etherscan-monolith.yaml
-	@kubectl delete -f depl/monolith/k8s/02-cdb-schema.yaml
+	@kubectl delete -f depl/monolith/k8s/06-grafana.yml
+	@kubectl delete -f depl/monolith/k8s/05-grafana-dashboards.yml
+	@kubectl delete -f depl/monolith/k8s/04-prometheus.yml
+	@kubectl delete -f depl/monolith/k8s/03-etherscan-monolith.yml
+	@kubectl delete -f depl/monolith/k8s/02-cdb-schema.yml
 	#@helm -n=etherscan-data uninstall cdb
-	#@kubectl delete -f depl/monolith/k8s/01-namespaces.yaml
+	#@kubectl delete -f depl/monolith/k8s/01-namespaces.yml
 
 k8s-monolith-deploy:
-	#@helm install cdb --namespace=etherscan-data --values depl/monolith/k8s/chart-settings/cdb-settings.yaml stable/cockroachdb
+	#@helm install cdb --namespace=etherscan-data --values depl/monolith/k8s/chart-settings/cdb-settings.yml stable/cockroachdb
 	@kubectl apply -f depl/monolith/k8s
 
 

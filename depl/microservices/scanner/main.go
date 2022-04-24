@@ -136,10 +136,11 @@ func runMain(appCtx *cli.Context) error {
 			_ = pprofListener.Close()
 			cancelFn()
 		case <-ctx.Done():
+			_ = pprofListener.Close()
 		}
 	}()
 
-	// Keep running until we receive a signal
+	// Keep running until we receive a signal or the context is canceled due to an error.
 	wg.Wait()
 	return nil
 }

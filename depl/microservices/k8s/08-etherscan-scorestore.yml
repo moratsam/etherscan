@@ -11,7 +11,8 @@ spec:
     targetPort: 8080
     name: grpc
   selector:
-    app: etherscan-scorestore-instance
+    app: etherscan
+    component: etherscan-scorestore-instance
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -19,16 +20,19 @@ metadata:
   name: etherscan-scorestore-instance
   namespace: etherscan-data
   labels:
-    app: etherscan-scorestore-instance
+    app: etherscan
+    component: etherscan-scorestore-instance
 spec:
   selector:
     matchLabels:
-      app: etherscan-scorestore-instance
-  replicas: 2
+      app: etherscan
+      component: etherscan-scorestore-instance
+  replicas: 1
   template:
     metadata:
       labels:
-        app: etherscan-scorestore-instance
+        app: etherscan
+        component: etherscan-scorestore-instance
         role: data-api
     spec:
       containers:
@@ -44,6 +48,6 @@ spec:
           name: pprof
         resources:
           limits:
-            cpu: "2"
+            cpu: "1"
           requests:
             cpu: 50m

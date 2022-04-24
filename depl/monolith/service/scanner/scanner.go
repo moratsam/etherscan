@@ -113,14 +113,13 @@ func (svc *Service) scan(ctx context.Context) error {
 	}
 
 	processed, err := svc.scanner.Scan(ctx, blockIt, svc.cfg.GraphAPI)
+	svc.cfg.Logger.WithFields(logrus.Fields{
+		"processed_blocks_count": processed,
+	}).Info("exited scan")
 	if err != nil {
 		return xerrors.Errorf("scanner: unable to complete scanning: %w", err)
 	} else if err = blockIt.Close(); err != nil {
 		return xerrors.Errorf("scanner: unable to close the block iterator: %w", err)
 	}
-
-	svc.cfg.Logger.WithFields(logrus.Fields{
-		"processed_blocks_count": processed,
-	}).Info("completed scan")
 	return nil
 }

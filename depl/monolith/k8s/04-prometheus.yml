@@ -21,6 +21,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus
+  namespace: monitoring
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -34,7 +35,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: prometheus
-  namespace: default
+  namespace: monitoring
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -44,25 +45,19 @@ metadata:
 data:
   prometheus.yml: |-
     global:
-      scrape_interval: 15s # By default, scrape targets every 15seconds. # Attach these labels to any time series or alerts when #communicating with external systems (federation, remote storage, #Alertmanager).
-    # Scraping Prometheus itself
+      # Never
+      scrape_interval: 1y
+      scrape_timeout: 1y
+      evaluation_interval: 1y
     scrape_configs:
-    - job_name: 'prometheus'
+    - job_name: 'etherscan'
       scrape_interval: 5s
-      static_configs:
-      - targets: ['localhost:9090']
-    - job_name: 'kubernetes-service-endpoints'
       kubernetes_sd_configs:
-      - role: endpoints
+      - namespaces:
+          names:
+          - etherscan
+        role: pod
       relabel_configs:
-      - action: labelmap
-        regex: __meta_kubernetes_service_label_(.+)
-      - source_labels: [__meta_kubernetes_namespace]
-        action: replace
-        target_label: kubernetes_namespace
-      - source_labels: [__meta_kubernetes_service_name]
-        action: replace
-        target_label: kubernetes_name
 ---
 kind: Service
 apiVersion: v1
@@ -77,6 +72,7 @@ spec:
     protocol: TCP
     port: 9090
     targetPort: 9090
+    nodePort: 32333
   type: NodePort
 ---
 apiVersion: apps/v1

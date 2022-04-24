@@ -5,16 +5,19 @@ metadata:
   name: etherscan-blockinserter-instance
   namespace: etherscan
   labels:
-    app: etherscan-blockinserter-instance
+    app: etherscan
+    component: etherscan-blockinserter-instance
 spec:
   selector:
     matchLabels:
-      app: etherscan-blockinserter-instance
+      app: etherscan
+      component: etherscan-blockinserter-instance
   replicas: 1
   template:
     metadata:
       labels:
-        app: etherscan-blockinserter-instance
+        app: etherscan
+        component: etherscan-blockinserter-instance
     spec:
       containers:
       - name: etherscan-blockinserter
@@ -27,6 +30,6 @@ spec:
           name: pprof
         resources:
           limits:
-            cpu: "1"
-          requests:
             cpu: 50m
+          requests:
+            cpu: 25m

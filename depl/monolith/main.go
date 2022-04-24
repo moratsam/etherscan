@@ -42,13 +42,6 @@ func main() {
 		http.ListenAndServe(":6060", nil)
 	}()
 
-	// Expose prometheus at localhost:31933/metrics
-	http.Handle("/metrics", promhttp.Handler())
-	go func() {
-		http.ListenAndServe(":31933", nil)
-	}()
-
-
 	host, _ := os.Hostname()
 	rootLogger := logrus.New()
 	logger := rootLogger.WithFields(logrus.Fields{
@@ -185,11 +178,11 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	scannerCfg.GraphAPI	= txGraphAPI
 	scannerCfg.Logger		= logger.WithField("service", "scanner")
 	if svc, err = scanner.NewService(scannerCfg); err == nil {
+		/*
 		logger.Warn("SKIPPING scanner service")
 		_ = svc
-		/*
-		svcGroup = append(svcGroup, svc)
 		*/
+		svcGroup = append(svcGroup, svc)
 	} else {
 		return nil, err
 	}

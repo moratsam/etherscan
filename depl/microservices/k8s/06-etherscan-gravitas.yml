@@ -12,7 +12,8 @@ spec:
     targetPort: 8080
     name: grpc
   selector:
-    app: etherscan-gravitas-master-instance
+    app: etherscan
+    component: etherscan-gravitas-master-instance
 ---
 # Deploy a single master pod
 apiVersion: apps/v1
@@ -21,16 +22,19 @@ metadata:
   name: etherscan-gravitas-master-instance
   namespace: etherscan
   labels:
-    app: etherscan-gravitas-master-instance
+    app: etherscan
+    component: etherscan-gravitas-master-instance
 spec:
   selector:
     matchLabels:
-      app: etherscan-gravitas-master-instance
+      app: etherscan
+      component: etherscan-gravitas-master-instance
   replicas: 1
   template:
     metadata:
       labels:
-        app: etherscan-gravitas-master-instance
+        app: etherscan
+        component: etherscan-gravitas-master-instance
     spec:
       containers:
       - name: etherscan-gravitas-master
@@ -48,7 +52,7 @@ spec:
           name: pprof
         resources:
           limits:
-            cpu: "1"
+            cpu: "25m"
           requests:
             cpu: 25m
 ---
@@ -59,16 +63,19 @@ metadata:
   name: etherscan-gravitas-worker-instance
   namespace: etherscan
   labels:
-    app: etherscan-gravitas-worker-instance
+    app: etherscan
+    component: etherscan-gravitas-worker-instance
 spec:
   selector:
     matchLabels:
-      app: etherscan-gravitas-worker-instance
-  replicas: 4
+      app: etherscan
+      component: etherscan-gravitas-worker-instance
+  replicas: 1
   template:
     metadata:
       labels:
-        app: etherscan-gravitas-worker-instance
+        app: etherscan
+        component: etherscan-gravitas-worker-instance
     spec:
       containers:
       - name: etherscan-gravitas-worker
@@ -85,6 +92,6 @@ spec:
           name: pprof
         resources:
           limits:
-            cpu: "2"
+            cpu: 1
           requests:
             cpu: 100m

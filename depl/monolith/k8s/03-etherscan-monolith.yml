@@ -23,7 +23,7 @@ metadata:
     app: etherscan-monolith-instance
 spec:
   ports:
-  - name: prom
+  - name: prometheus
     port: 31933
     targetPort: 31933
     protocol: TCP
@@ -60,8 +60,10 @@ spec:
           - "-score-store-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
           - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
         ports:
-        - name: prom
+        - name: prometheus
           containerPort: 31933
+        - name: pprof
+          containerPort: 6060
         resources:
           requests:
             cpu: "2"

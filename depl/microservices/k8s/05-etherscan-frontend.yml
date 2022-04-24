@@ -24,7 +24,7 @@ spec:
     targetPort: 8080
     name: web
   selector:
-    app: etherscan-frontend-instance
+    component: etherscan-frontend-instance
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,16 +32,19 @@ metadata:
   name: etherscan-frontend-instance
   namespace: etherscan
   labels:
-    app: etherscan-frontend-instance
+    app: etherscan
+    component: etherscan-frontend-instance
 spec:
   selector:
     matchLabels:
-      app: etherscan-frontend-instance
-  replicas: 2
+      app: etherscan
+      component: etherscan-frontend-instance
+  replicas: 1
   template:
     metadata:
       labels:
-        app: etherscan-frontend-instance
+        app: etherscan
+        component: etherscan-frontend-instance
     spec:
       containers:
       - name: etherscan-frontend
@@ -56,6 +59,6 @@ spec:
           name: pprof
         resources:
           limits:
-            cpu: "1"
+            cpu: 25m
           requests:
-            cpu: 50m
+            cpu: 10m

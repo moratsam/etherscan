@@ -11,7 +11,8 @@ spec:
     targetPort: 8080
     name: grpc
   selector:
-    app: etherscan-txgraph-instance
+    app: etherscan
+    component: etherscan-txgraph-instance
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -19,16 +20,19 @@ metadata:
   name: etherscan-txgraph-instance
   namespace: etherscan-data
   labels:
-    app: etherscan-txgraph-instance
+    app: etherscan
+    component: etherscan-txgraph-instance
 spec:
   selector:
     matchLabels:
-      app: etherscan-txgraph-instance
+      app: etherscan
+      component: etherscan-txgraph-instance
   replicas: 2
   template:
     metadata:
       labels:
-        app: etherscan-txgraph-instance
+        app: etherscan
+        component: etherscan-txgraph-instance
         role: data-api
     spec:
       containers:
@@ -44,6 +48,6 @@ spec:
           name: pprof
         resources:
           limits:
-            cpu: "2"
+            cpu: 1
           requests:
-            cpu: 100m
+            cpu: "50m"

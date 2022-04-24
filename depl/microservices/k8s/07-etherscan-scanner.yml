@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: etherscan-scanner-service
+  namespace: etherscan
+  labels:
+    app: etherscan
+    component: etherscan-scanner-service
+spec:
+  ports:
+  - name: prometheus
+    port: 31933
+    targetPort: 31933
+    protocol: TCP
+  selector:
+    app: etherscan
+    component: etherscan-scanner-instance
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherscan-scanner-instance
+  namespace: etherscan
+  labels:
+    app: etherscan
+    component: etherscan-scanner-instance
+spec:
+  selector:
+    matchLabels:
+      app: etherscan
+      component: etherscan-scanner-instance
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: etherscan
+        component: etherscan-scanner-instance
+    spec:
+      containers:
+      - name: etherscan-scanner
+        imagePullPolicy: Always
+        image: localhost:5000/etherscan-scanner:latest
+        args:
+          - "-scanner-num-workers=4"
+          - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
+        ports:
+        - name: pprof
+          containerPort: 6060
+        - name: prometheus
+          containerPort: 31933
+        resources:
+          limits:
+            cpu: 75m
+          requests:
+            cpu: 50m
+
+
+
+
+
+

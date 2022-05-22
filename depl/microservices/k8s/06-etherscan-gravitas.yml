@@ -1,5 +1,3 @@
-# A service with a cluster IP that serves as a load-balancer for the frontend
-# pods. It is exposed outside the cluster via the above ingress resource.
 apiVersion: v1
 kind: Service
 metadata:

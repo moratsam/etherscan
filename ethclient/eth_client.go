@@ -15,12 +15,24 @@ type ETHClient interface {
 	SubscribeNewHead(ctx context.Context) (<-chan *types.Header, ethereum.Subscription, error)
 }
 
-func NewETHClient() (ETHClient, error){
-	endpoint := "wss://mainnet.infura.io/ws/v3/a1e9ac80b1d048139ceec8e3e783b80b"
+// Config encapsulates the confifuration options for creating a new ETHClient.
+type Config struct {
+	// If true, ETHClient will attempt to establish a connection to the local geth client.
+	// If false, ETHClient will attempt to establish a connection to an infura endpoint.
+	Local bool
+}
+
+func NewETHClient(cfg Config) (ETHClient, error){
+	var endpoint string
+	if cfg.Local {
+		endpoint = "/home/o/.ethereum/geth.ipc"
+	} else {
+		endpoint = "wss://mainnet.infura.io/ws/v3/a1e9ac80b1d048139ceec8e3e783b80b"
+	}
 
 	client, err := ethclient.Dial(endpoint)
 	if err != nil{
-		return nil, xerrors.Errorf("dialing ethclient: %w", err)
+		return nil, xerrors.Errorf("dialling ethclient: %w", err)
 	}
 
 	return &ethClient{client: client}, nil

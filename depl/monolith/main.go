@@ -83,10 +83,14 @@ func runMain(logger *logrus.Entry) error {
 func setupServices(logger *logrus.Entry) (service.Group, error) {
 	var (
 		blockInserterCfg	blockinserter.Config
+		ethClientCfg		ethclient.Config
 		frontendCfg			frontend.Config
 		gravitasCfg			gravitas.Config
 		scannerCfg			scanner.Config
 	)
+
+	// ethclient
+	flag.BoolVar(&ethClientCfg.Local, "ethclient-local", true, "true - connect to a local geth client; false - connect to an infura endpoint")
 
 	// frontend
 	flag.StringVar(&frontendCfg.ListenAddr, "frontend-listen-addr", ":48855", "The address to listen for incoming front-end requests")
@@ -110,7 +114,7 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	flag.Parse()
 
 	// Retrieve an ethclient.
-	ethClient, err := ethclient.NewETHClient()
+	ethClient, err := ethclient.NewETHClient(ethClientCfg)
 	if err != nil {
 		logger.WithField("err", err).Error("new eth client")
 		return nil, err

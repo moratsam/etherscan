@@ -51,6 +51,11 @@ func makeApp() *cli.App {
 	app.Name = appName
 	app.Version = appSha
 	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:		"ethclient-local",
+			EnvVar:	"ETHCLIENT_LOCAL",
+			Usage: 	"true - connect to a local geth client; false - connect to an infura endpoint",
+		},
 		cli.StringFlag{
 			Name:   "tx-graph-api",
 			EnvVar: "TX_GRAPH_API",
@@ -73,7 +78,9 @@ func runMain(appCtx *cli.Context) error {
 	defer cancelFn()
 
 	// Retrieve an ethclient.
-	ethClient, err := ethclient.NewETHClient()
+	var ethClientCfg ethclient.Config
+	ethClientCfg.Local = appCtx.Bool("ethclient-local")
+	ethClient, err := ethclient.NewETHClient(ethClientCfg)
 	if err != nil {
 		logger.WithField("err", err).Error("new eth client")
 		return err

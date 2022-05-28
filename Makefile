@@ -13,7 +13,7 @@ endef
 
 #minikube:
 #minikube start --network-plugin=cni --cni=calico
-#minikube addons enable insecure-registry
+#minikube config set insecure-registry true
 # Write to /etc/docker/daemon.json
 #{
 #  "storage-driver": "overlay2",
@@ -199,7 +199,7 @@ proto: ensure-proto-deps
 	dbspgraph/proto/api.proto
 
 run-monolith:
-	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "6s"
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "60s"
 
 
 run-cdb-migrations: migrate-check-deps check-cdb-env

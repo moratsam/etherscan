@@ -57,7 +57,6 @@ func (g *CDBGraph) Close() error {
 //Bulk insert blocks whose numbers are in blockNumbers array.
 func (g *CDBGraph) bulkInsertBlocks(blockNumbers []int) error {
 	numArgs := 2 // Number of columns in the block table.
-	fmt.Println("bulk inserting blocks: ", len(blockNumbers))
 	valueStrings := make([]string, 0, len(blockNumbers))
 	valueArgs := make([]interface{}, 0, numArgs * len(blockNumbers))
 	for i,blockNumber := range blockNumbers {
@@ -95,12 +94,14 @@ func (g *CDBGraph) refreshBlocks() error {
 	}
 
 	// Insert missing blocks in batches.
+	blocksInsertedCnt := 0
 	batchSize := 10000
 	var batch []int
 	for i:=1; i<maxBlockNumber; i++ {
 		_, keyExists := seen[i]
 		if ! keyExists {
 			batch = append(batch, i)
+			blocksInsertedCnt++
 		}
 		if len(batch) == batchSize {
 			if err := g.bulkInsertBlocks(batch); err != nil {
@@ -115,6 +116,7 @@ func (g *CDBGraph) refreshBlocks() error {
 		}
 	}
 
+	fmt.Printf("Bulk inserted %d blocks\n", blocksInsertedCnt)
 	return nil
 }
 

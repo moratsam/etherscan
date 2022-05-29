@@ -25,7 +25,7 @@ type Config struct {
 func NewETHClient(cfg Config) (ETHClient, error){
 	var endpoint string
 	if cfg.Local {
-		endpoint = "/home/o/.ethereum/geth.ipc"
+		endpoint = "/run/media/o/cigla/.ethereum/geth.ipc"
 	} else {
 		endpoint = "wss://mainnet.infura.io/ws/v3/a1e9ac80b1d048139ceec8e3e783b80b"
 	}

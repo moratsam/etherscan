@@ -4,13 +4,11 @@ import (
 	"context"
 	"io/ioutil"
 	"fmt"
-	_"net/http"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	_"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
@@ -143,16 +141,6 @@ func NewWorkerNode(cfg WorkerConfig) (*WorkerNode, error) {
 //
 // Run blocks until the provided context expires.
 func (n *WorkerNode) Run(ctx context.Context) error {
-	/*
-	integration_test fails because of this. (because multiple /metrics handles
-	get called on the same host.
-	// Expose prometheus at localhost:31933/metrics
-	http.Handle("/metrics", promhttp.Handler())
-	go func() {
-		http.ListenAndServe(":31933", nil)
-	}()
-	*/
-
 	n.cfg.Logger.Info("starting service")
 	defer func() {
 		_ = n.workerFacade.Close()

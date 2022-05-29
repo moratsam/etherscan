@@ -159,10 +159,17 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 	toAddr := "ffffffffffffffffffffffffffffffffffffffff"
 	if err := svc.calculator.Graph().Reset(); err != nil {
 		return err
-	} else if err := svc.loadWallets(fromAddr, toAddr); err != nil {
+	} else if err := svc.loadWallets(ctx, fromAddr, toAddr); err != nil {
 		return err
 	}
 	graphPopulateTime := svc.cfg.Clock.Now().Sub(tick)
+
+	// If context was cancelled during the Reset() or loadWallets() phase, return.
+	select {
+	case <- ctx.Done():
+		return nil
+	default:
+	}
 
 	tick = svc.cfg.Clock.Now()
 	if err := svc.calculator.Executor().RunToCompletion(ctx); err != nil {
@@ -207,24 +214,46 @@ type vertex struct {
 
 // Loads wallets and their transactions into the graph.
 // To speed things up, <svc.cfg.TxFetchers> routines are simultaneously fetching txs.
-func (svc *Service) loadWallets(fromAddr, toAddr string) error {
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+func (svc *Service) loadWallets(globalCtx context.Context, fromAddr, toAddr string) error {
+	localCtx, cancelFn := context.WithCancel(context.Background())
 	vertexCh := make(chan vertex, svc.cfg.TxFetchers)
 	walletNumCh := make(chan int, 1)
-	doneCh := make(chan struct{}, 1)
+	doneCh := make(chan struct{}, 1+svc.cfg.TxFetchers)
 	addrCh := make(chan string, svc.cfg.TxFetchers)
 	errCh := make(chan error, 1)
 	for i:=0; i<svc.cfg.TxFetchers; i++ {
-		go svc.fetchWalletTxs(ctx, addrCh, vertexCh, errCh)
+		go svc.fetchWalletTxs(localCtx, addrCh, vertexCh, errCh, doneCh)
 	}
 
-	go svc.addVertices(ctx, vertexCh, walletNumCh, doneCh)
+	go svc.addVertices(localCtx, vertexCh, walletNumCh, doneCh)
+
+	gracefullyStop := func() error {
+		cancelFn() // Cancel context of addVertices & fetchWalletTxs routines.
+		// Wait for the addVertices & fetchWalletTxs routines to finish.
+		for i:=0; i<cap(doneCh); i++ {
+			<- doneCh
+		}
+
+		defer close(vertexCh)
+		defer close(walletNumCh)
+		defer close(doneCh)
+		defer close(addrCh)
+		defer close(errCh)
+
+		// Return an error if it was emitted into the errCh.
+		select {
+		case err := <-errCh:
+			return err
+		default:
+			return nil
+		}
+	}
 
 	// Iterate over all the wallets and send their addresses to the addrCh.
 	// If an error occurs in any of the fetchWalletTxs subroutines, return it.
 	walletIt, err := svc.cfg.GraphAPI.Wallets(fromAddr, toAddr)
 	if err != nil {
+		gracefullyStop()
 		return err
 	}
 	walletNum := 0
@@ -232,8 +261,11 @@ func (svc *Service) loadWallets(fromAddr, toAddr string) error {
 		walletNum++
 		wallet := walletIt.Wallet()
 		select {
+		case <-globalCtx.Done():
+			return gracefullyStop()
 		case err := <-errCh:
 			_ = walletIt.Close()
+			gracefullyStop()
 			return err
 		case addrCh <- wallet.Address:
 		}
@@ -241,28 +273,24 @@ func (svc *Service) loadWallets(fromAddr, toAddr string) error {
 
 	if err = walletIt.Error(); err != nil {
 		_ = walletIt.Close()
+		gracefullyStop()
 		return err
 	}
 	if err = walletIt.Close(); err != nil {
+		gracefullyStop()
 		return err
 	}
 
 	// Send the total number of wallets to the addVertices routine, so it knows when it's done.
 	walletNumCh <- walletNum
-
-	// Wait for the addVertices routine to finish or an error to occur.
-	select {
-	case <- doneCh:
-		return nil
-	case err := <-errCh:
-		return err
-	}
+	return gracefullyStop()
 }
 
 // Reads wallet addresses from the addrCh, creates a iterator for a wallets transactions,
 // sends the address + txs data as a vertex to the addVertices.
 // If it encounters an error, it sends it to the errCh.
-func (svc *Service) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error) {
+func (svc *Service) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error, doneCh chan<- struct{}) {
+	defer func() {doneCh <- struct{}{}}()
 	var addr string
 	for {
 		select {
@@ -290,7 +318,11 @@ func (svc *Service) fetchWalletTxs(ctx context.Context, addrCh <-chan string, ve
 			}
 			
 			// Send the vertex data to the vertexCh.
-			vertexCh <- vertex{address: addr, txs: txs}
+			select {
+			case <-ctx.Done():
+				return
+			case vertexCh <- vertex{address: addr, txs: txs}:
+			}
 		}
 	}
 }
@@ -299,12 +331,12 @@ func (svc *Service) fetchWalletTxs(ctx context.Context, addrCh <-chan string, ve
 // Receives the total number of vertices via the walletNumCh.
 // Signals via the doneCh when it's done.
 func (svc *Service) addVertices(ctx context.Context, vertexCh <-chan vertex, walletNumCh <-chan int, doneCh chan<- struct{}) {
+	defer func() {doneCh <- struct{}{}}()
 	walletNum := -1
 	walletNumSeen := 0
 	var v vertex
 	for {
 		if walletNumSeen == walletNum {
-			doneCh <- struct{}{}
 			return
 		}
 		select {

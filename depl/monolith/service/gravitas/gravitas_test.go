@@ -28,11 +28,12 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 	defer ctrl.Finish()
 
 	origCfg := Config{
-		GraphAPI:          mocks.NewMockGraphAPI(ctrl),
-		ScoreStoreAPI:          mocks.NewMockScoreStoreAPI(ctrl),
-		PartitionDetector: partition.Fixed{},
-		ComputeWorkers:    4,
-		UpdateInterval:    time.Minute,
+		GraphAPI:				mocks.NewMockGraphAPI(ctrl),
+		ScoreStoreAPI:			mocks.NewMockScoreStoreAPI(ctrl),
+		PartitionDetector:	partition.Fixed{},
+		ComputeWorkers:		4,
+		TxFetchers:				1,
+		UpdateInterval:		time.Minute,
 	}
 
 	cfg := origCfg
@@ -75,6 +76,7 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 		PartitionDetector:	partition.Fixed{Partition: 0, NumPartitions: 1},
 		Clock:           		clk,
 		ComputeWorkers:  		1,
+		TxFetchers:				1,
 		UpdateInterval:  		time.Minute,
 	}
 	svc, err := NewService(cfg)
@@ -161,12 +163,13 @@ func (s *GravitasTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {
 	clk := testclock.NewClock(time.Now())
 
 	cfg := Config{
-		GraphAPI:          mocks.NewMockGraphAPI(ctrl),
-		ScoreStoreAPI:     mocks.NewMockScoreStoreAPI(ctrl),
-		PartitionDetector: partition.Fixed{Partition: 1, NumPartitions: 2},
-		Clock:             clk,
-		ComputeWorkers:    1,
-		UpdateInterval:    time.Minute,
+		GraphAPI:          	mocks.NewMockGraphAPI(ctrl),
+		ScoreStoreAPI:     	mocks.NewMockScoreStoreAPI(ctrl),
+		PartitionDetector:	partition.Fixed{Partition: 1, NumPartitions: 2},
+		Clock:            	clk,
+		ComputeWorkers:    	1,
+		TxFetchers:				1,
+		UpdateInterval:    	time.Minute,
 	}
 	svc, err := NewService(cfg)
 	c.Assert(err, gc.IsNil)

@@ -11,7 +11,7 @@ type fifo struct {
 	proc Processor
 }
 
-// FIFO returns a StageRunner that processer incoming payloads in a first-in
+// FIFO returns a StageRunner that processes incoming payloads in a first-in
 // first-out fashion. Each input is passed to the specified processor
 // and its output is emitted to the next stage.
 func FIFO(proc Processor) StageRunner {
@@ -102,17 +102,18 @@ func DynamicWorkerPool(proc Processor, maxWorkers int) StageRunner {
 		panic("DynamicWorkerPool: maxWorkers must be > 0")
 	}
 
-	// Fill up the token pool.
 	tokenPool := make(chan struct{}, maxWorkers)
-	for i:=0; i<maxWorkers; i++ {
-		tokenPool <- struct{}{}
-	}
 
 	return &dynamicWorkerPool{proc: proc, tokenPool: tokenPool}
 }
 
 // Run implements StageRunner.
 func (p *dynamicWorkerPool) Run(ctx context.Context, params StageParams) {
+	// Fill up the token pool.
+	for i:=0; i<cap(p.tokenPool); i++ {
+		p.tokenPool <- struct{}{}
+	}
+
 stop:
 	for {
 		select {

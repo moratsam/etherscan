@@ -2,12 +2,10 @@ package scanner
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/moratsam/etherscan/txgraph/graph"
 	"github.com/moratsam/etherscan/pipeline"
@@ -72,8 +70,9 @@ func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
 			newBlockFetcher(cfg.ETHClient),
 			cfg.FetchWorkers,
 		),
-		pipeline.FIFO(
+		pipeline.FixedWorkerPool(
 			newTxParser(cfg.Graph),
+			cfg.FetchWorkers,
 		),
 	)
 }
@@ -83,12 +82,6 @@ func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
 // Calls to Scan block until the block iterator is exhausted (which never happens),
 // or an error occurs or the context is cancelled.
 func (s *Scanner) Scan(ctx context.Context, blockIt graph.BlockIterator, txGraph Graph) (int, error) {
-	// Expose prometheus at localhost:31933/metrics
-	http.Handle("/metrics", promhttp.Handler())
-	go func() {
-		http.ListenAndServe(":31933", nil)
-	}()
-
 	sink := &countingSink{
 		txGraph: txGraph,
 	}

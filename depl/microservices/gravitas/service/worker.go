@@ -4,13 +4,13 @@ import (
 	"context"
 	"io/ioutil"
 	"fmt"
-	"net/http"
+	_"net/http"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	_"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
@@ -143,6 +143,16 @@ func NewWorkerNode(cfg WorkerConfig) (*WorkerNode, error) {
 //
 // Run blocks until the provided context expires.
 func (n *WorkerNode) Run(ctx context.Context) error {
+	/*
+	integration_test fails because of this. (because multiple /metrics handles
+	get called on the same host.
+	// Expose prometheus at localhost:31933/metrics
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		http.ListenAndServe(":31933", nil)
+	}()
+	*/
+
 	n.cfg.Logger.Info("starting service")
 	defer func() {
 		_ = n.workerFacade.Close()
@@ -225,39 +235,55 @@ type vertex struct {
 // Loads wallets and their transactions into the graph.
 // To speed things up, <n.cfg.TxFetchers> routines are simultaneously fetching txs.
 func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
-	// Expose prometheus at localhost:31933/metrics
-	http.Handle("/metrics", promhttp.Handler())
-	go func() {
-		http.ListenAndServe(":31933", nil)
-	}()
-
 	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
 	vertexCh := make(chan vertex, n.cfg.TxFetchers)
 	walletNumCh := make(chan int, 1)
-	doneCh := make(chan struct{}, 1)
+	doneCh := make(chan struct{}, 1+n.cfg.TxFetchers)
 	addrCh := make(chan string, n.cfg.TxFetchers)
 	errCh := make(chan error, 1)
 	for i:=0; i<n.cfg.TxFetchers; i++ {
-		go n.fetchWalletTxs(ctx, addrCh, vertexCh, errCh)
+		go n.fetchWalletTxs(ctx, addrCh, vertexCh, errCh, doneCh)
 	}
 
 	go n.addVertices(ctx, vertexCh, walletNumCh, doneCh)
+
+	gracefullyStop := func() error {
+		cancelFn() // Cancel context of addVertices & fetchWalletTxs routines.
+		// Wait for the addVertices & fetchWalletTxs routines to finish.
+		for i:=0; i<cap(doneCh); i++ {
+			<- doneCh
+		}
+
+		defer close(vertexCh)
+		defer close(walletNumCh)
+		defer close(doneCh)
+		defer close(addrCh)
+		defer close(errCh)
+
+		// Return an error if it was emitted into the errCh.
+		select {
+		case err := <-errCh:
+			return err
+		default:
+			return nil
+		}
+	}
 
 	// Iterate over all the wallets and send their addresses to the addrCh.
 	// If an error occurs in any of the fetchWalletTxs subroutines, return it.
 	walletIt, err := n.cfg.GraphAPI.Wallets(fromAddr, toAddr)
 	if err != nil {
+		gracefullyStop()
 		return err
 	}
 	walletNum := 0
 	for walletIt.Next() {
-		promGravitasLoadWalletsCnt.Inc()
 		walletNum++
 		wallet := walletIt.Wallet()
 		select {
 		case err := <-errCh:
 			_ = walletIt.Close()
+			gracefullyStop()
 			return err
 		case addrCh <- wallet.Address:
 		}
@@ -265,28 +291,24 @@ func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
 
 	if err = walletIt.Error(); err != nil {
 		_ = walletIt.Close()
+		gracefullyStop()
 		return err
 	}
 	if err = walletIt.Close(); err != nil {
+		gracefullyStop()
 		return err
 	}
 
 	// Send the total number of wallets to the addVertices routine, so it knows when it's done.
 	walletNumCh <- walletNum
-
-	// Wait for the addVertices routine to finish or an error to occur.
-	select {
-	case <- doneCh:
-		return nil
-	case err := <-errCh:
-		return err
-	}
+	return gracefullyStop()
 }
 
 // Reads wallet addresses from the addrCh, creates a iterator for a wallets transactions,
 // sends the address + txs data as a vertex to the addVertices.
 // If it encounters an error, it sends it to the errCh.
-func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error) {
+func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error, doneCh chan<- struct{}) {
+	defer func() {doneCh <- struct{}{}}()
 	var addr string
 	for {
 		select {
@@ -314,7 +336,11 @@ func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, v
 			}
 			
 			// Send the vertex data to the vertexCh.
-			vertexCh <- vertex{address: addr, txs: txs}
+			select {
+			case <-ctx.Done():
+				return
+			case vertexCh <- vertex{address: addr, txs: txs}:
+			}
 		}
 	}
 }
@@ -323,12 +349,12 @@ func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, v
 // Receives the total number of vertices via the walletNumCh.
 // Signals via the doneCh when it's done.
 func (n *WorkerNode) addVertices(ctx context.Context, vertexCh <-chan vertex, walletNumCh <-chan int, doneCh chan<- struct{}) {
+	defer func() {doneCh <- struct{}{}}()
 	walletNum := -1
 	walletNumSeen := 0
 	var v vertex
 	for {
 		if walletNumSeen == walletNum {
-			doneCh <- struct{}{}
 			return
 		}
 		select {

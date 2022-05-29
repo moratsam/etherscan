@@ -30,9 +30,7 @@ func (i *blockIterator) Next() bool {
 
 	//Wait for new blocks to come in.
 	if i.curIndex >= len(i.blocks) {
-		if ok := i.refresh(); !ok {
-			return false
-		}
+		return false
 	}
 
 	i.curIndex++
@@ -41,23 +39,6 @@ func (i *blockIterator) Next() bool {
 
 func (i *blockIterator) Error() error {
 	return i.lastErr
-}
-
-// Wait for new blocks to come in.
-// Return false if an error occurred while getting unprocessed blocks.
-func (i *blockIterator) refresh() bool{
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	for ; len(i.blocks) < 1; {
-		blocks, err := i.g.getUnprocessedBlocks()
-		if err != nil {
-			i.lastErr = err
-			return false
-		}
-		i.blocks = blocks
-	}
-	i.curIndex = 0
-	return true
 }
 
 func (i *blockIterator) Close() error {

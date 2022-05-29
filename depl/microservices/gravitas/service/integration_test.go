@@ -44,7 +44,7 @@ func (s *DistributedGravitasTestSuite) SetUpTest(c *gc.C) {
 }
 
 func (s *DistributedGravitasTestSuite) TearDownTest(c *gc.C) {
-	c.Log(s.logOutput.String())
+	//c.Log(s.logOutput.String())
 	//fmt.Println(s.logOutput.String())
 }
 
@@ -55,7 +55,7 @@ func (s *DistributedGravitasTestSuite) TestVerifyDistributedCalculationsAreCorre
 	// Run the calculations on a single instance so we can get a baseline
 	// for our comparisons.
 	singleResults := s.runStandaloneCalculator(c, graphInstance, numWallets, numTxs)
-	fmt.Println(singleResults)
+	//fmt.Println(singleResults)
 
 	// Reset the scores and run in distributed mode
 	s.resetScores(c, graphInstance, scoreStoreInstance)
@@ -181,6 +181,7 @@ func (s *DistributedGravitasTestSuite) runDistributedCalculator(c *gc.C, graphIn
 				GraphAPI:				graphInstance,
 				ScoreStoreAPI:			scoreStoreInstance,
 				ComputeWorkers:		runtime.NumCPU(),
+				TxFetchers:				1,
 				Logger:					s.logger.WithField("worker_id", i),
 			})
 			c.Assert(err, gc.IsNil)

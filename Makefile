@@ -1,4 +1,4 @@
-.PHONY: check-cdb-env cdb-connect cdb-start deps docker-build-cdb docker-build-microservices docker-build-monolith docker-build-and-push-microservices docker-build-and-push-monolith docker-push-cdb docker-push-microservices docker-push-monolith docker-run ensure-proto-deps k8s-cdb-connect k8s-microservices-delete k8s-monolith-delete k8s-microservices-deploy k8s-monolith-deploy k8s-monolith-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto run-monolith run-cdb-migrations tags test 
+.PHONY: cdb-check-env cdb-connect cdb-migrate-down cdb-migrate-up cdb-start deps docker-build-cdb docker-build-microservices docker-build-monolith docker-build-and-push-microservices docker-build-and-push-monolith docker-push-cdb docker-push-microservices docker-push-monolith docker-run ensure-proto-deps k8s-cdb-connect k8s-microservices-delete k8s-monolith-delete k8s-microservices-deploy k8s-monolith-deploy k8s-monolith-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto run-monolith tags test
 
 define dsn_missing_error
 
@@ -40,13 +40,21 @@ ifneq ($(PRIVATE_REGISTRY),)
 endif
 
 
-check-cdb-env:
+cdb-check-env:
 ifndef CDB_DSN
 	$(error ${dsn_missing_error})
 endif
 
 cdb-connect:
 	@psql postgresql://root@127.0.0.1:26257?sslmode=disable
+
+cdb-migrate-down: migrate-check-deps cdb-check-env
+	migrate -source file://scorestore/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' down
+	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' down
+
+cdb-migrate-up: migrate-check-deps cdb-check-env
+	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
+	migrate -source file://scorestore/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
 
 cdb-start:
 	@cockroach start-single-node  --store /usr/local/cockroach/cockroach-data/ --insecure --advertise-addr 127.0.0.1:26257 &
@@ -199,17 +207,14 @@ proto: ensure-proto-deps
 	dbspgraph/proto/api.proto
 
 run-monolith:
-	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "60s"
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "2m" --scanner-num-workers 8 --gravitas-tx-fetchers 10 --gravitas-num-workers 4
 
-
-run-cdb-migrations: migrate-check-deps check-cdb-env
-	migrate -source file://txgraph/store/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
-	migrate -source file://scorestore/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
 
 tags:
 	@ctags -R
 
 test: 
-	@echo "[go test] running tests and collecting coverage metrics"
-	@go test -v -tags all_tests -coverprofile=coverage.txt -covermode=atomic ./...
+	#@echo "[go test] running tests and collecting coverage metrics"
+	#@go test -v -tags all_tests -coverprofile=coverage.txt -covermode=atomic ./...
+	@go test ./...
 

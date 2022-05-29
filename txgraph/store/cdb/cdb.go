@@ -14,13 +14,12 @@ import (
 var (
 	allBlockNumbersQuery = `select "number" from block order by "number" desc`
 
-	unprocessedBlocksQuery = `select "number" from block where processed=false`
+	unprocessedBlocksQuery = `select "number" from block where processed=false limit 500000`
 
 	findBlockQuery = `select "number", processed from block where "number"=$1`
 
 	upsertBlockQuery = `
-insert into block("number", processed) values ($1, $2) on conflict ("number") do
-update set processed=$2 returning processed`
+upsert into block("number", processed) values ($1, $2) returning processed`
 
   findWalletQuery = "select address from wallet where address=$1"
 
@@ -64,7 +63,7 @@ func (g *CDBGraph) bulkInsertBlocks(blockNumbers []int) error {
 		valueArgs = append(valueArgs, blockNumber)
 		valueArgs = append(valueArgs, false)
 	}
-	stmt := fmt.Sprintf(`INSERT INTO block("number", processed) VALUES %s on conflict ("number") do nothing;`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`upsert INTO block("number", processed) VALUES %s;`, strings.Join(valueStrings, ","))
 	_, err := g.db.Exec(stmt, valueArgs...)
 	return err
 }
@@ -193,7 +192,7 @@ func (g *CDBGraph) bulkInsertTxs(txs []*graph.Tx) error {
 		valueArgs = append(valueArgs, tx.TransactionFee.String())
 		valueArgs = append(valueArgs, tx.Data)
 	}
-	stmt := fmt.Sprintf(`INSERT INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s on conflict (hash) do nothing`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`upsert INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
 	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
 		if isForeignKeyViolationError(err) {
 			err = graph.ErrUnknownAddress
@@ -207,7 +206,7 @@ func (g *CDBGraph) bulkInsertTxs(txs []*graph.Tx) error {
 // Not the nicest code, constructing a raw bulk insert SQL statement.
 func (g *CDBGraph) InsertTxs(txs []*graph.Tx) error {
 	// Insert transactions in batches.
-	batchSize := 25
+	batchSize := 500
 	var i int
 	for i=0; i+batchSize<len(txs); i+=batchSize {
 		if err := g.bulkInsertTxs(txs[i:i+batchSize]); err != nil {
@@ -239,7 +238,7 @@ func (g *CDBGraph) bulkUpsertWallets(wallets []*graph.Wallet) error {
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d)", i*numArgs+1))
 	}
 
-	stmt := fmt.Sprintf(`INSERT INTO wallet(address) VALUES %s ON CONFLICT (address) DO NOTHING`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`upsert INTO wallet(address) VALUES %s`, strings.Join(valueStrings, ","))
 	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
 		return xerrors.Errorf("insert wallets: %w", err)
 	}
@@ -250,7 +249,7 @@ func (g *CDBGraph) bulkUpsertWallets(wallets []*graph.Wallet) error {
 // Upserts wallets.
 func (g *CDBGraph) UpsertWallets(wallets []*graph.Wallet) error {
 	// Upsert wallets in batches.
-	batchSize := 500
+	batchSize := 1000
 	var i int
 	for i=0; i+batchSize<len(wallets); i+=batchSize {
 		if err := g.bulkUpsertWallets(wallets[i:i+batchSize]); err != nil {

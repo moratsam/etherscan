@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 
@@ -41,6 +42,13 @@ func main() {
 	go func() {
 		http.ListenAndServe(":6060", nil)
 	}()
+
+	// Expose prometheus at localhost:31933/metrics
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		http.ListenAndServe(":31933", nil)
+	}()
+
 
 	host, _ := os.Hostname()
 	rootLogger := logrus.New()

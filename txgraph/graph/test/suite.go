@@ -22,28 +22,6 @@ func (s *SuiteBase) SetGraph(g graph.Graph) {
 	s.g = g
 }
 
-func (s *SuiteBase) TestRefreshOfBlockIterator(c *gc.C) {
-	testBlock := &graph.Block{Number: 2}
-
-	blockIterator, err := s.g.Blocks()
-	c.Assert(err, gc.IsNil)
-
-	// Make a function that will insert a block.
-	go func(block *graph.Block){
-		s.g.UpsertBlock(block)
-	}(testBlock)
-
-	time.Sleep(1 * time.Second)
-	c.Assert(blockIterator.Next(), gc.Equals, true, gc.Commentf("block iterator returned false"))
-	receivedBlock1 := blockIterator.Block()
-	receivedBlock2 := blockIterator.Block()
-	if receivedBlock1.Number == 2 {
-		c.Assert(receivedBlock1, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
-	} else if receivedBlock2.Number == 2 {
-		c.Assert(receivedBlock2, gc.DeepEquals, testBlock, gc.Commentf("Received block should equal testBlock"))
-	}
-}
-
 func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
 	// Insert block with high number.
 	err := s.g.UpsertBlock(&graph.Block{Number: 300})

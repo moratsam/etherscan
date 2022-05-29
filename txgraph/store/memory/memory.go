@@ -2,7 +2,6 @@ package memory
 
 import (
 	"sync"
-	"time"
 
 	"golang.org/x/xerrors"
 
@@ -39,14 +38,6 @@ func NewInMemoryGraph() *InMemoryGraph {
 		wallets:			make(map[string]*graph.Wallet),
 		walletTxsMap:	make(map[string]txList),
 	}
-
-	go func(g *InMemoryGraph) {
-		for {
-			time.Sleep(1*time.Second)
-			g.mu.RLock()
-			g.mu.RUnlock()
-		}
-	}(g)
 
 	return g
 

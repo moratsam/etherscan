@@ -157,14 +157,12 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 
 	fromAddr := "0000000000000000000000000000000000000000"
 	toAddr := "ffffffffffffffffffffffffffffffffffffffff"
-	if err := svc.calculator.Graph().Reset(); err != nil {
-		return err
-	} else if err := svc.loadWallets(ctx, fromAddr, toAddr); err != nil {
+	if err := svc.loadWallets(ctx, fromAddr, toAddr); err != nil {
 		return err
 	}
 	graphPopulateTime := svc.cfg.Clock.Now().Sub(tick)
 
-	// If context was cancelled during the Reset() or loadWallets() phase, return.
+	// If context was cancelled during the loadWallets() phase, return.
 	select {
 	case <- ctx.Done():
 		return nil
@@ -191,7 +189,8 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 		"score_persist_time":		scorePersistTime.String(),
 		"total_pass_time":			svc.cfg.Clock.Now().Sub(startAt).String(),
 	}).Info("completed Gravitas update pass")
-	return nil
+
+	return svc.calculator.Graph().Reset()
 }
 
 func (svc *Service) persistScores(vertices []*bspgraph.Vertex) error {

@@ -68,11 +68,11 @@ func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
 	return pipeline.New(
 		pipeline.DynamicWorkerPool(
 			newBlockFetcher(cfg.ETHClient),
-			cfg.FetchWorkers,
+			cfg.FetchWorkers/2,
 		),
 		pipeline.FixedWorkerPool(
 			newTxParser(cfg.Graph),
-			cfg.FetchWorkers,
+			cfg.FetchWorkers/2,
 		),
 	)
 }

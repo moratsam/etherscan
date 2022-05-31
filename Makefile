@@ -57,7 +57,7 @@ cdb-migrate-up: migrate-check-deps cdb-check-env
 	migrate -source file://scorestore/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' up
 
 cdb-start:
-	@cockroach start-single-node  --store /usr/local/cockroach/cockroach-data/ --insecure --advertise-addr 127.0.0.1:26257 &
+	@cockroach start-single-node  --store /usr/local/cockroach-data/ --insecure --advertise-addr 127.0.0.1:26257 --cache 1G --background
 	@sleep 3
 	@cockroach sql --insecure -e 'create database etherscan;'
 
@@ -207,7 +207,7 @@ proto: ensure-proto-deps
 	dbspgraph/proto/api.proto
 
 run-monolith:
-	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "10m" --scanner-num-workers 8 --gravitas-tx-fetchers 10 --gravitas-num-workers 4
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "15m" --scanner-num-workers 12 --gravitas-tx-fetchers 5 --gravitas-num-workers 2
 
 
 tags:

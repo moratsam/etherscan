@@ -52,6 +52,7 @@ func main() {
 
 	host, _ := os.Hostname()
 	rootLogger := logrus.New()
+	rootLogger.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
 	logger := rootLogger.WithFields(logrus.Fields{
 		"app":	appName,
 		"sha":	appSha,

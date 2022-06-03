@@ -41,12 +41,16 @@ func (c *TxGraphClient) Blocks() (graph.BlockIterator, error) {
 	return &blockIterator{stream: stream, cancelFn: cancelFn}, nil
 	
 }
-func (c *TxGraphClient) UpsertBlock(block *graph.Block) error {
-	req := &proto.Block{
-		Number:		int32(block.Number),
-		Processed:	block.Processed,
+func (c *TxGraphClient) UpsertBlocks(blocks []*graph.Block) error {
+	reqBlocks := make([]*proto.Block, len(blocks))
+	for i,block := range blocks {
+		reqBlocks[i] = &proto.Block{
+			Number:		int32(block.Number),
+			Processed:	block.Processed,
+		}
 	}
-	_, err := c.cli.UpsertBlock(c.ctx, req)
+	req := &proto.BlockBatch{Blocks: reqBlocks}
+	_, err := c.cli.UpsertBlocks(c.ctx, req)
 	return err
 }
 

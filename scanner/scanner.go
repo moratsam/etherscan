@@ -32,8 +32,8 @@ type Graph interface {
 	// Creates new wallets or updates existing ones.
 	UpsertWallets(wallets []*graph.Wallet) error
 
-	// Creates a new block or updates an existing one.
-	UpsertBlock(block *graph.Block) error
+	// Creates new blocks or updates an existing ones.
+	UpsertBlocks(blocks []*graph.Block) error
 }
 
 // Config encapsulates the configuration options for creating a new Scanner.
@@ -84,6 +84,7 @@ func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
 func (s *Scanner) Scan(ctx context.Context, blockIt graph.BlockIterator, txGraph Graph) (int, error) {
 	sink := &countingSink{
 		txGraph: txGraph,
+		consumedBlocks: make([]*graph.Block, 3000),
 	}
 	err := s.p.Process(ctx, &blockSource{blockIt: blockIt}, sink)
 	return sink.getCount(), err
@@ -109,9 +110,10 @@ func (so *blockSource) Payload() pipeline.Payload {
 
 // Implements the pipeline.Sink.
 type countingSink struct {
-	txGraph Graph
-
-	count int	
+	txGraph				Graph
+	consumedBlocks		[]*graph.Block
+	consumedBlocksIx	int
+	count					int	
 }
 
 // If Consume has been reached, the payload has been succesfully processed. In this case,
@@ -122,12 +124,15 @@ func (si *countingSink) Consume(_ context.Context, p pipeline.Payload) error {
 	si.count++
 	promScannerCnt.Inc()
 
-	block := &graph.Block{
+	 si.consumedBlocks[si.consumedBlocksIx] = &graph.Block{
 		Number: p.(*scannerPayload).BlockNumber,
 		Processed: true,
 	}
-	if err := si.txGraph.UpsertBlock(block); err != nil {
-		return err
+	si.consumedBlocksIx++
+
+	if si.consumedBlocksIx == len(si.consumedBlocks) {
+		si.consumedBlocksIx = 0
+		return si.txGraph.UpsertBlocks(si.consumedBlocks)
 	}
 
 	return nil

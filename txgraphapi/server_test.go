@@ -59,12 +59,12 @@ func (s *ServerTestSuite) TearDownTest(c *gc.C) {
 	_ = s.netListener.Close()
 }
 
-func (s *ServerTestSuite) TestUpsertBlock(c *gc.C) {
+func (s *ServerTestSuite) TestUpsertBlocks(c *gc.C) {
 	testBlockNumber1 := 1
 	testBlockNumber2 := 2
 
 	// Create and insert the first block
-	err := s.cli.UpsertBlock(&graph.Block{Number: testBlockNumber1})
+	err := s.cli.UpsertBlocks([]*graph.Block{&graph.Block{Number: testBlockNumber1}})
 	c.Assert(err, gc.IsNil)
 	
 	// Update existing block, set Processed to true
@@ -72,12 +72,12 @@ func (s *ServerTestSuite) TestUpsertBlock(c *gc.C) {
 		Number: 		testBlockNumber1,
 		Processed:	true,
 	}
-	err = s.cli.UpsertBlock(updated)
+	err = s.cli.UpsertBlocks([]*graph.Block{updated})
 	c.Assert(err, gc.IsNil)
 
 	// Create and insert the second block
 	secondBlock := &graph.Block{Number: testBlockNumber2}
-	err = s.cli.UpsertBlock(secondBlock)
+	err = s.cli.UpsertBlocks([]*graph.Block{secondBlock})
 	c.Assert(err, gc.IsNil)
 
 	// Subscribe to blocks and receive a block and verify it's the secondBlock

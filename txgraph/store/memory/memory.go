@@ -43,6 +43,9 @@ func NewInMemoryGraph() *InMemoryGraph {
 
 }
 
+// No cache implemented for in-memory store.
+func (g *InMemoryGraph) ClearWalletCache() {}
+
 // Checks for missing blocks in the graph and inserts all missing blocks, 
 // so that every block from 1 to the largest found block are in the graph.
 func (g *InMemoryGraph) refreshBlocks() error {
@@ -61,7 +64,7 @@ func (g *InMemoryGraph) refreshBlocks() error {
 	for i:=1; i<maxBlockNumber; i++ {
 		_, keyExists := g.blocks[i]
 		if ! keyExists {
-			if err := g.UpsertBlock(&graph.Block{Number: i}); err != nil {
+			if err := g.upsertBlock(&graph.Block{Number: i}); err != nil {
 				return xerrors.Errorf("refreshing blocks: %w", err)
 			}
 		}
@@ -100,7 +103,7 @@ func (g *InMemoryGraph) Blocks() (graph.BlockIterator, error) {
 
 // Upserts a Block.
 // Once the Processed field of a block equals true, it cannot be changed to false.
-func (g *InMemoryGraph) UpsertBlock(block *graph.Block) error {
+func (g *InMemoryGraph) upsertBlock(block *graph.Block) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -117,6 +120,15 @@ func (g *InMemoryGraph) UpsertBlock(block *graph.Block) error {
 	bCopy := new(graph.Block)
 	*bCopy = *block
 	g.blocks[bCopy.Number] = bCopy
+	return nil
+}
+
+func (g *InMemoryGraph) UpsertBlocks(blocks []*graph.Block) error {
+	for _, block := range blocks {
+		if err := g.upsertBlock(block); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

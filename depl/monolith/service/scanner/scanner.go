@@ -24,7 +24,7 @@ type ETHClient interface {
 // GraphAPI defines as set of API methods for accessing the tx graph.
 type GraphAPI interface {
 	Blocks() (graph.BlockIterator, error)
-	UpsertBlock(block *graph.Block) error
+	UpsertBlocks(blocks []*graph.Block) error
 	InsertTxs(txs []*graph.Tx) error
 	UpsertWallets(wallets []*graph.Wallet) error
 }

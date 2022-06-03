@@ -12,7 +12,7 @@ import (
 
 // Graph is implemented by objects that can insert transactions into a tx graph instance.
 type Graph interface {
-	UpsertBlock(block *graph.Block) error
+	UpsertBlocks(blocks []*graph.Block) error
 }
 
 // ETHClient is implemented by objects that can fetch an eth block by its number.
@@ -56,7 +56,7 @@ func (i *BlockInserter) Start(ctx context.Context) error {
 		case err := <-sub.Err():
 			return xerrors.Errorf("receiving header: %w", err)
 		case header = <-headerCh:
-			err := i.graph.UpsertBlock(&graph.Block{Number: int(header.Number.Int64())})
+			err := i.graph.UpsertBlocks([]*graph.Block{&graph.Block{Number: int(header.Number.Int64())}})
 			if err != nil {
 				sub.Unsubscribe()
 				return err

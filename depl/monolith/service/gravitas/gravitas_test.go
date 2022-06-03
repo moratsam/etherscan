@@ -63,6 +63,8 @@ func (s *ConfigTestSuite) TestConfigValidation(c *gc.C) {
 }
 
 func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
+	// TODO fixme
+	fmt.Println("gravitas TestFullRun In case of panics/errors: call to Reset() was moved from the beginning of the gravitas.updateGraphScores() to the end, so that memory is free during the wait during gravitas.Run() invocations. The downside of this is that it causes panics in this test.")
 	ctrl := gomock.NewController(c)
 	defer ctrl.Finish()
 

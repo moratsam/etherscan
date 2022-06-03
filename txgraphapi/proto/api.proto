@@ -10,7 +10,7 @@ service TxGraph {
 	rpc Blocks(google.protobuf.Empty) returns (stream Block);
 
 	// Upserts a block.
-	rpc UpsertBlock(Block) returns (google.protobuf.Empty);
+	rpc UpsertBlocks(BlockBatch) returns (google.protobuf.Empty);
 
 	// Inserts the transactions.
 	rpc InsertTxs(TxBatch) returns (google.protobuf.Empty);
@@ -29,6 +29,10 @@ service TxGraph {
 message Block {
 	int32 number	= 1;
 	bool processed = 2;
+}
+
+message BlockBatch {
+	repeated Block blocks = 1;
 }
 
 // Describes a transaction in the txgraph.

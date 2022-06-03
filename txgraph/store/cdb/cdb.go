@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/lib/pq"
 	"golang.org/x/xerrors"
@@ -12,20 +13,22 @@ import (
 )
 
 var (
+	allWalletAddressesQuery = `select address from wallet`
+
 	allBlockNumbersQuery = `select "number" from block order by "number" desc`
 
-	unprocessedBlocksQuery = `select "number" from block where processed=false limit 500000`
-
 	findBlockQuery = `select "number", processed from block where "number"=$1`
+
+	findWalletQuery = "select address from wallet where address=$1"
+
+	unprocessedBlocksQuery = `select "number" from block where processed=false limit 500000`
 
 	upsertBlockQuery = `
 upsert into block("number", processed) values ($1, $2) returning processed`
 
-  findWalletQuery = "select address from wallet where address=$1"
+	walletsInPartitionQuery = `select address from wallet where address >= $1 and address < $2`
 
-  walletsInPartitionQuery = `select address from wallet where address >= $1 and address < $2`
-
-  walletTxsQuery = `select * from tx where "from"=$1 or "to"=$1`
+	walletTxsQuery = `select * from tx where "from"=$1 or "to"=$1`
 
 	// Compile-time check for ensuring CDBGraph implements Graph.
 	_ graph.Graph = (*CDBGraph)(nil)
@@ -35,6 +38,8 @@ upsert into block("number", processed) values ($1, $2) returning processed`
 // a cockroachdb instance.
 type CDBGraph struct {
 	db *sql.DB
+	mu sync.RWMutex
+	walletCache map[string]bool
 }
 
 // NewCDBGraph returns a CDBGraph instance that connects to the cockroachdb
@@ -45,27 +50,73 @@ func NewCDBGraph(dsn string) (*CDBGraph, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &CDBGraph{db: db}, nil
+	g := &CDBGraph{
+		db:				db,
+		walletCache:	make(map[string]bool),
+	}
+
+	return g, g.fillWalletCache()
+}
+
+// Clears wallet cache (Used for testing and before Closing the CDBGraph).
+func (g *CDBGraph) ClearWalletCache() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.walletCache = make(map[string]bool)
 }
 
 // Close terminates the connection to the backing cockroachdb instance.
 func (g *CDBGraph) Close() error {
+	g.ClearWalletCache()
 	return g.db.Close()
 }
 
-//Bulk insert blocks whose numbers are in blockNumbers array.
-func (g *CDBGraph) bulkInsertBlocks(blockNumbers []int) error {
+func (g *CDBGraph) fillWalletCache() error {
+	rows, err := g.db.Query(allWalletAddressesQuery)
+	if err != nil {
+		return xerrors.Errorf("allWalletAddressesQuery: %w", err)
+	}
+	defer rows.Close()
+
+	var addr string
+	for rows.Next() {
+		if err := rows.Scan(&addr); err != nil {
+			return xerrors.Errorf("fillWalletCache scan: %w", err)
+		}
+		g.walletCache[addr] = true
+	}
+	fmt.Println("Wallet cache size: ", len(g.walletCache))
+	return nil
+}
+
+//Bulk insert blocks.
+func (g *CDBGraph) bulkUpsertBlocks(blocks []*graph.Block) error {
 	numArgs := 2 // Number of columns in the block table.
-	valueStrings := make([]string, 0, len(blockNumbers))
-	valueArgs := make([]interface{}, 0, numArgs * len(blockNumbers))
-	for i,blockNumber := range blockNumbers {
+	valueStrings := make([]string, 0, len(blocks))
+	valueArgs := make([]interface{}, 0, numArgs * len(blocks))
+	for i,block := range blocks {
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i*numArgs+1, i*numArgs+2))
-		valueArgs = append(valueArgs, blockNumber)
-		valueArgs = append(valueArgs, false)
+		valueArgs = append(valueArgs, block.Number)
+		valueArgs = append(valueArgs, block.Processed)
 	}
 	stmt := fmt.Sprintf(`upsert INTO block("number", processed) VALUES %s;`, strings.Join(valueStrings, ","))
 	_, err := g.db.Exec(stmt, valueArgs...)
 	return err
+}
+
+func (g *CDBGraph) UpsertBlocks(blocks []*graph.Block) error {
+	// Insert blocks in batches.
+	batchSize := 10000
+	var i int
+	for i=0; i+batchSize<len(blocks); i+=batchSize {
+		if err := g.bulkUpsertBlocks(blocks[i:i+batchSize]); err != nil {
+			return err
+		}
+	}
+	if i < len(blocks) {
+		return g.bulkUpsertBlocks(blocks[i:])
+	}
+	return nil
 }
 
 // Checks for missing blocks in the graph and inserts all missing blocks, 
@@ -92,31 +143,16 @@ func (g *CDBGraph) refreshBlocks() error {
 		}
 	}
 
-	// Insert missing blocks in batches.
-	blocksInsertedCnt := 0
-	batchSize := 10000
-	var batch []int
+	var blocks []*graph.Block
 	for i:=1; i<maxBlockNumber; i++ {
 		_, keyExists := seen[i]
 		if ! keyExists {
-			batch = append(batch, i)
-			blocksInsertedCnt++
-		}
-		if len(batch) == batchSize {
-			if err := g.bulkInsertBlocks(batch); err != nil {
-				return xerrors.Errorf("refreshing blocks bulk insert: %w", err)
-			}
-			batch = batch[:0]
+			blocks = append(blocks, &graph.Block{Number: i, Processed: false})
 		}
 	}
-	if len(batch) > 0 {
-		if err := g.bulkInsertBlocks(batch); err != nil {
-			return xerrors.Errorf("refreshing blocks bulk insert: %w", err)
-		}
-	}
-
-	fmt.Printf("Bulk inserted %d blocks\n", blocksInsertedCnt)
-	return nil
+	err = g.UpsertBlocks(blocks)
+	fmt.Println("Bulk upserted blocks: ", len(blocks))
+	return err
 }
 
 // Returns a list of unprocessed blocks.
@@ -151,25 +187,6 @@ func (g *CDBGraph) Blocks() (graph.BlockIterator, error) {
 		return nil, err
 	}
 	return &blockIterator{g: g, blocks: blocks}, nil
-}
-
-// Upserts a Block.
-// Once the Processed field of a block equals true, it cannot be changed to false.
-func (g *CDBGraph) UpsertBlock(block *graph.Block) error {
-	// In case block already exists in the graph and has Processed field set to true,
-	// make sure this is not overwritten by this upsert.
-	var processed bool
-	row := g.db.QueryRow(findBlockQuery, fmt.Sprintf("%x", block.Number))
-	row.Scan(&processed)
-	if !processed {
-		processed = block.Processed
-	}
-
-	row = g.db.QueryRow(upsertBlockQuery, block.Number, processed)
-	if err := row.Scan(&block.Processed); err != nil {
-		return xerrors.Errorf("upsert block: %w", err)
-	}
-	return nil
 }
 
 func (g *CDBGraph) bulkInsertTxs(txs []*graph.Tx) error {
@@ -248,19 +265,37 @@ func (g *CDBGraph) bulkUpsertWallets(wallets []*graph.Wallet) error {
 
 // Upserts wallets.
 func (g *CDBGraph) UpsertWallets(wallets []*graph.Wallet) error {
-	// Upsert wallets in batches.
-	batchSize := 1000
 	var i int
-	for i=0; i+batchSize<len(wallets); i+=batchSize {
-		if err := g.bulkUpsertWallets(wallets[i:i+batchSize]); err != nil {
+	var newWallets []*graph.Wallet
+	// Find new wallet addresses.
+	g.mu.RLock()
+	for _, wallet := range wallets {
+		if _, exists := g.walletCache[wallet.Address]; !exists {
+			newWallets = append(newWallets, wallet)
+		}
+	}
+	g.mu.RUnlock()
+
+	// Upsert new wallets in batches.
+	batchSize := 1000
+	for i=0; i+batchSize<len(newWallets); i+=batchSize {
+		if err := g.bulkUpsertWallets(newWallets[i:i+batchSize]); err != nil {
 			return err
 		}
 	}
-	if i < len(wallets) {
-		if err := g.bulkUpsertWallets(wallets[i:]); err != nil {
+	if i < len(newWallets) {
+		if err := g.bulkUpsertWallets(newWallets[i:]); err != nil {
 			return err
 		}
 	}
+
+	//Add new wallet addresses to the cache.
+	g.mu.Lock()
+	for _, wallet := range newWallets {
+		g.walletCache[wallet.Address] = true
+	}
+	g.mu.Unlock()
+
 	return nil
 }
 

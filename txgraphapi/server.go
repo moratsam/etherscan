@@ -50,12 +50,16 @@ func (s *TxGraphServer) Blocks(_ *empty.Empty, w proto.TxGraph_BlocksServer) err
 	return nil
 }
 
-func (s *TxGraphServer) UpsertBlock(_ context.Context, req *proto.Block) (*empty.Empty, error) {
-	block := &graph.Block{
-		Number:		int(req.Number),
-		Processed:	req.Processed,
+func (s *TxGraphServer) UpsertBlocks(_ context.Context, req *proto.BlockBatch) (*empty.Empty, error) {
+	blocks := make([]*graph.Block, len(req.Blocks))
+	for i, reqBlock := range req.Blocks{
+		blocks[i] = &graph.Block{
+			Number:		int(reqBlock.Number),
+			Processed:	reqBlock.Processed,
+		}
 	}
-	err := s.g.UpsertBlock(block)
+
+	err := s.g.UpsertBlocks(blocks)
 	return new(empty.Empty), err
 }
 

@@ -87,18 +87,18 @@ func (mr *MockGraphMockRecorder) InsertTxs(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertTxs", reflect.TypeOf((*MockGraph)(nil).InsertTxs), arg0)
 }
 
-// UpsertBlock mocks base method.
-func (m *MockGraph) UpsertBlock(arg0 *graph.Block) error {
+// UpsertBlocks mocks base method.
+func (m *MockGraph) UpsertBlocks(arg0 []*graph.Block) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpsertBlock", arg0)
+	ret := m.ctrl.Call(m, "UpsertBlocks", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpsertBlock indicates an expected call of UpsertBlock.
-func (mr *MockGraphMockRecorder) UpsertBlock(arg0 interface{}) *gomock.Call {
+// UpsertBlocks indicates an expected call of UpsertBlocks.
+func (mr *MockGraphMockRecorder) UpsertBlocks(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertBlock", reflect.TypeOf((*MockGraph)(nil).UpsertBlock), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertBlocks", reflect.TypeOf((*MockGraph)(nil).UpsertBlocks), arg0)
 }
 
 // UpsertWallets mocks base method.

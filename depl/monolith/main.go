@@ -235,7 +235,7 @@ func getScoreStore(scoreStoreURI string, logger *logrus.Entry) (scoreStoreAPI, e
 type txGraphAPI interface {
 	Blocks() (txgraph.BlockIterator, error)
 	InsertTxs(txs []*txgraph.Tx) error
-	UpsertBlock(block *txgraph.Block) error
+	UpsertBlocks(blocks []*txgraph.Block) error
 	UpsertWallets(wallets []*txgraph.Wallet) error
 	Wallets(fromAddress, toAddress string) (txgraph.WalletIterator, error)
 	WalletTxs(address string) (txgraph.TxIterator, error)

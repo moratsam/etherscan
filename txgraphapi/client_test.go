@@ -21,21 +21,22 @@ var _ = gc.Suite(new(ClientTestSuite))
 
 type ClientTestSuite struct{}
 
-func (s *ClientTestSuite) TestUpsertBlock(c *gc.C) {
+func (s *ClientTestSuite) TestUpsertBlocks(c *gc.C) {
 	ctrl := gomock.NewController(c)
 	defer ctrl.Finish()
 	rpcCli := mocks.NewMockTxGraphClient(ctrl)
 
-	block := &graph.Block{
-		Number:		1,
-		Processed:	false,
-	}
+	blocks := []*graph.Block{&graph.Block{Number: 1}}
 
-	rpcCli.EXPECT().UpsertBlock(
+	rpcCli.EXPECT().UpsertBlocks(
 		gomock.AssignableToTypeOf(context.TODO()),
-		&proto.Block{
-			Number: 		int32(block.Number),
-			Processed:	block.Processed,
+		&proto.BlockBatch{
+			Blocks: []*proto.Block{
+				&proto.Block{
+					Number: 		int32(blocks[0].Number),
+					Processed:	blocks[0].Processed,
+				},
+			},
 		},
 	).Return(
 		nil,
@@ -43,6 +44,6 @@ func (s *ClientTestSuite) TestUpsertBlock(c *gc.C) {
 	)
 
 	cli := txgraphapi.NewTxGraphClient(context.TODO(), rpcCli)
-	err := cli.UpsertBlock(block)
+	err := cli.UpsertBlocks(blocks)
 	c.Assert(err, gc.IsNil)
 }

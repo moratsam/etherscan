@@ -24,7 +24,7 @@ func (s *SuiteBase) SetGraph(g graph.Graph) {
 
 func (s *SuiteBase) TestRefreshBlocks(c *gc.C) {
 	// Insert block with high number.
-	err := s.g.UpsertBlock(&graph.Block{Number: 300})
+	err := s.g.UpsertBlocks([]*graph.Block{&graph.Block{Number: 300}})
 	c.Assert(err, gc.IsNil)
 
 	blockIterator, err := s.g.Blocks()
@@ -46,14 +46,16 @@ func (s *SuiteBase) TestBlockIterator(c *gc.C) {
 	var err error
 	// Insert 5 blocks
 	// Set Processed=true for blocks 1 and 3
+	var blocks []*graph.Block
 	for i:=1; i<=5; i++ {
 		if i==1 || i==3 {
-			err = s.g.UpsertBlock(&graph.Block{Number: i, Processed: true})
+			blocks = append(blocks, &graph.Block{Number: i, Processed: true})
 		} else {
-			err = s.g.UpsertBlock(&graph.Block{Number: i})
+			blocks = append(blocks, &graph.Block{Number: i})
 		}
-		c.Assert(err, gc.IsNil)
 	}
+	err = s.g.UpsertBlocks(blocks)
+	c.Assert(err, gc.IsNil)
 
 	// Create 2 blockIterators
 	blockIterator1, err := s.g.Blocks()
@@ -84,13 +86,13 @@ func (s *SuiteBase) TestBlockIterator(c *gc.C) {
 	}
 }
 
-func (s *SuiteBase) TestUpsertBlock(c *gc.C) {
+func (s *SuiteBase) TestUpsertBlocks(c *gc.C) {
 	testBlockNumber1 := 1
 	testBlockNumber2 := 2
 
 	// Create and insert a new block
 	original := &graph.Block{Number: testBlockNumber1}
-	err := s.g.UpsertBlock(original)
+	err := s.g.UpsertBlocks([]*graph.Block{original})
 	c.Assert(err, gc.IsNil)
 	
 	// Update existing block, set Processed to true
@@ -98,12 +100,12 @@ func (s *SuiteBase) TestUpsertBlock(c *gc.C) {
 		Number: 		testBlockNumber1,
 		Processed:	true,
 	}
-	err = s.g.UpsertBlock(updated)
+	err = s.g.UpsertBlocks([]*graph.Block{updated})
 	c.Assert(err, gc.IsNil)
 
 	// Create and insert a new block
 	secondBlock := &graph.Block{Number: testBlockNumber2}
-	err = s.g.UpsertBlock(secondBlock)
+	err = s.g.UpsertBlocks([]*graph.Block{secondBlock})
 	c.Assert(err, gc.IsNil)
 
 	// Subscribe to blocks and receive a block and verify it's the secondBlock
@@ -191,6 +193,8 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	txTo.Timestamp = txTo.Timestamp.Truncate(time.Millisecond)
 	c.Assert(txFrom, gc.DeepEquals, tx)
 	c.Assert(txTo, gc.DeepEquals, tx)
+
+	s.g.ClearWalletCache()
 }
 
 func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
@@ -211,6 +215,7 @@ func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
 	retrieved, err := s.g.FindWallet(testAddr)
 	c.Assert(err, gc.IsNil)
 	c.Assert(retrieved, gc.DeepEquals, original, gc.Commentf("lookup by Address returned wrong wallet"))
+	s.g.ClearWalletCache()
 }
 
 func (s *SuiteBase) TestFindWallet(c *gc.C) {
@@ -230,6 +235,7 @@ func (s *SuiteBase) TestFindWallet(c *gc.C) {
 	// Lookup unknown wallet
 	_, err = s.g.FindWallet("inexistent")
 	c.Assert(xerrors.Is(err, graph.ErrNotFound), gc.Equals, true)
+	s.g.ClearWalletCache()
 }
 
 // Verifies that multiple clients can concurrently access the store.
@@ -308,6 +314,7 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 		case <- time.After(10 * time.Second):
 			c.Fatal("timed out waiting for test to complete")
 	}
+	s.g.ClearWalletCache()
 }
 
 // Verifies that multiple clients can concurrently access the store.
@@ -362,6 +369,7 @@ func (s *SuiteBase) TestConcurrentWalletIterators(c *gc.C) {
 		case <- time.After(10 * time.Second):
 			c.Fatal("timed out waiting for test to complete")
 	}
+	s.g.ClearWalletCache()
 }
 
 func (s *SuiteBase) iteratePartitionedWallets(c *gc.C, numPartitions int) int {
@@ -400,6 +408,7 @@ func (s *SuiteBase) TestPartitionedWalletIterators(c *gc.C) {
 	// Check with both odd and even partition counts to check for rounding-related bugs.
 	c.Assert(s.iteratePartitionedWallets(c, numPartitions), gc.Equals, numWallets)
 	c.Assert(s.iteratePartitionedWallets(c, numPartitions+1), gc.Equals, numWallets)
+	s.g.ClearWalletCache()
 }
 
 // If address is not 40 chars long, string comparisons will not work as expected.

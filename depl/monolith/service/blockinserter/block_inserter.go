@@ -24,7 +24,7 @@ type ETHClient interface {
 
 // GraphAPI is implemented by objects that can insert transactions into a tx graph instance.
 type GraphAPI interface {
-	UpsertBlock(block *graph.Block) error
+	UpsertBlocks(blocks []*graph.Block) error
 }
 
 // Config encapsulates the settings for configuring the block-inserter service.

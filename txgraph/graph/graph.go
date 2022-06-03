@@ -94,16 +94,19 @@ type Wallet struct {
 
 // Graph is implemented by objects that can mutate or query a tx graph.
 type Graph interface {
-	// Returns an infinite iterator for all unprocessed blocks.
-	// Until an error occurs it will keep waiting and returning new blocks.
+	// Returns an iterator for unprocessed blocks (only about 1/2 * 10^6 at a time.
 	Blocks() (BlockIterator, error)
 
-	// Creates a new block or updates an existing one.
-	// Once the Processed field of a block equals true, it cannot be changed to false.
-	UpsertBlock(block *Block) error
+	// Creates new blocks or updates existing ones.
+	UpsertBlocks(blocks []*Block) error
 
 	// Inserts new transactions.
 	InsertTxs(tx []*Tx) error
+
+	// Clears cache of wallets stored locally by the graph instance.
+	// The cache is a significant optimisation, since many transactions repeat
+	// between wallets.
+	ClearWalletCache()
 
 	// Creates new wallets or updates existing ones.
 	UpsertWallets(wallets []*Wallet) error

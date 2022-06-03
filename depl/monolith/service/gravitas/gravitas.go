@@ -155,8 +155,16 @@ func (svc *Service) updateGraphScores(ctx context.Context) error {
 	startAt := svc.cfg.Clock.Now()
 	tick := startAt
 
-	fromAddr := "0000000000000000000000000000000000000000"
-	toAddr := "ffffffffffffffffffffffffffffffffffffffff"
+	// Get minimum and maximum wallet address.
+	fullRange, err := partition.NewFullRange(1)
+	if err != nil {
+		return err
+	}
+	fromAddr, toAddr, err := fullRange.PartitionExtents(0)
+	if err != nil {
+		return err
+	}
+
 	if err := svc.loadWallets(ctx, fromAddr, toAddr); err != nil {
 		return err
 	}

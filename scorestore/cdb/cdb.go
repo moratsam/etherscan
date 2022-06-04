@@ -3,6 +3,7 @@ package cdb
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/lib/pq"
@@ -76,15 +77,50 @@ func (g *CDBScoreStore) bulkUpsertScores(scores []*scorestore.Score) error {
 // On conflict of (wallet, scorer), the value will be updated.
 func (ss *CDBScoreStore) UpsertScores(scores []*scorestore.Score) error {
 	// Upsert scores in batches.
-	batchSize := 500
-	var i int
-	for i=0; i+batchSize<len(scores); i+=batchSize {
-		if err := ss.bulkUpsertScores(scores[i:i+batchSize]); err != nil {
-			return err
+	batchSize := 1500
+	numWorkers := 3
+	type slice struct {
+		startIx, endIx int
+	}
+	sliceCh := make(chan slice, 1)
+	doneCh := make(chan struct{}, numWorkers)
+	errCh := make(chan error, 1)
+
+	inserter := func() {
+		defer func(){ doneCh <- struct{}{} }()
+		for {
+			select {
+			case slice, open := <- sliceCh:
+				if !open {
+					// Channel was closed.
+					return
+				}
+				if err := ss.bulkUpsertScores(scores[slice.startIx:slice.endIx]); err != nil {
+					maybeEmitError(err, errCh)
+					return
+				}
+			}
 		}
 	}
-	if i < len(scores) {
-		if err := ss.bulkUpsertScores(scores[i:]); err != nil {
+
+	for i:=0; i < numWorkers; i++ {
+		go inserter()
+	}
+
+	for i:=0; i<len(scores); i+=batchSize {
+		batchSize = int(math.Min(float64(batchSize), float64(len(scores)-i)))
+		select {
+		case err := <- errCh:
+			return err
+		case sliceCh <- slice{startIx: i, endIx: i+batchSize}:
+		}
+	}
+
+	close(sliceCh)
+	for i:=0; i < numWorkers; i++ {
+		select {
+		 case <- doneCh:
+		 case err := <- errCh:
 			return err
 		}
 	}
@@ -149,4 +185,12 @@ func isForeignKeyViolationError(err error) bool {
 		return false
 	}
 	return pqErr.Code.Name() == "foreign_key_violation"
+}
+
+
+func maybeEmitError(err error, errCh chan<- error) {
+	select {
+		case errCh <- err: // error emitted.
+		default: // error channel is full with other errors.
+	}
 }

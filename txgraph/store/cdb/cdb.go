@@ -3,6 +3,7 @@ package cdb
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -22,9 +23,6 @@ var (
 	findWalletQuery = "select address from wallet where address=$1"
 
 	unprocessedBlocksQuery = `select "number" from block where processed=false limit 500000`
-
-	upsertBlockQuery = `
-upsert into block("number", processed) values ($1, $2) returning processed`
 
 	walletsInPartitionQuery = `select address from wallet where address >= $1 and address < $2`
 
@@ -107,14 +105,11 @@ func (g *CDBGraph) bulkUpsertBlocks(blocks []*graph.Block) error {
 func (g *CDBGraph) UpsertBlocks(blocks []*graph.Block) error {
 	// Insert blocks in batches.
 	batchSize := 10000
-	var i int
-	for i=0; i+batchSize<len(blocks); i+=batchSize {
+	for i:=0; i<len(blocks); i+=batchSize {
+		batchSize = int(math.Min(float64(batchSize), float64(len(blocks)-i)))
 		if err := g.bulkUpsertBlocks(blocks[i:i+batchSize]); err != nil {
 			return err
 		}
-	}
-	if i < len(blocks) {
-		return g.bulkUpsertBlocks(blocks[i:])
 	}
 	return nil
 }
@@ -209,12 +204,12 @@ func (g *CDBGraph) bulkInsertTxs(txs []*graph.Tx) error {
 		valueArgs = append(valueArgs, tx.TransactionFee.String())
 		valueArgs = append(valueArgs, tx.Data)
 	}
-	stmt := fmt.Sprintf(`upsert INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`insert INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
 	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
-		if isForeignKeyViolationError(err) {
-			err = graph.ErrUnknownAddress
+		stmt = fmt.Sprintf(`upsert INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
+		if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
+			return xerrors.Errorf("insert txs: %w", err)
 		}
-		return xerrors.Errorf("insert txs: %w", err)
 	}
 	return nil
 }
@@ -224,14 +219,9 @@ func (g *CDBGraph) bulkInsertTxs(txs []*graph.Tx) error {
 func (g *CDBGraph) InsertTxs(txs []*graph.Tx) error {
 	// Insert transactions in batches.
 	batchSize := 500
-	var i int
-	for i=0; i+batchSize<len(txs); i+=batchSize {
+	for i:=0; i<len(txs); i+=batchSize {
+		batchSize = int(math.Min(float64(batchSize), float64(len(txs)-i)))
 		if err := g.bulkInsertTxs(txs[i:i+batchSize]); err != nil {
-			return err
-		}
-	}
-	if i < len(txs) {
-		if err := g.bulkInsertTxs(txs[i:]); err != nil {
 			return err
 		}
 	}
@@ -255,9 +245,12 @@ func (g *CDBGraph) bulkUpsertWallets(wallets []*graph.Wallet) error {
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d)", i*numArgs+1))
 	}
 
-	stmt := fmt.Sprintf(`upsert INTO wallet(address) VALUES %s`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`insert INTO wallet(address) VALUES %s`, strings.Join(valueStrings, ","))
 	if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
-		return xerrors.Errorf("insert wallets: %w", err)
+		stmt = fmt.Sprintf(`upsert INTO wallet(address) VALUES %s`, strings.Join(valueStrings, ","))
+		if _, err := g.db.Exec(stmt, valueArgs...); err != nil {
+			return xerrors.Errorf("insert wallets: %w", err)
+		}
 	}
 	return nil
 }
@@ -265,7 +258,6 @@ func (g *CDBGraph) bulkUpsertWallets(wallets []*graph.Wallet) error {
 
 // Upserts wallets.
 func (g *CDBGraph) UpsertWallets(wallets []*graph.Wallet) error {
-	var i int
 	var newWallets []*graph.Wallet
 	// Find new wallet addresses.
 	g.mu.RLock()
@@ -277,14 +269,10 @@ func (g *CDBGraph) UpsertWallets(wallets []*graph.Wallet) error {
 	g.mu.RUnlock()
 
 	// Upsert new wallets in batches.
-	batchSize := 1000
-	for i=0; i+batchSize<len(newWallets); i+=batchSize {
+	batchSize := 500
+	for i:=0; i<len(newWallets); i+=batchSize {
+		batchSize = int(math.Min(float64(batchSize), float64(len(newWallets)-i)))
 		if err := g.bulkUpsertWallets(newWallets[i:i+batchSize]); err != nil {
-			return err
-		}
-	}
-	if i < len(newWallets) {
-		if err := g.bulkUpsertWallets(newWallets[i:]); err != nil {
 			return err
 		}
 	}

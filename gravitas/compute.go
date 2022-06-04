@@ -55,6 +55,7 @@ func makeComputeFunc() bspgraph.ComputeFunc {
 				}
 			}
 			vData.Value.Sub(vData.Value, sum)
+			vData.Txs = nil // Free memory of txs as a memory optimisation.
 			v.SetValue(vData)
 		case 2:
 			// Add to the vertex value the sum of all incoming tx values (sent in superstep 1).

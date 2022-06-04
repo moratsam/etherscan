@@ -1,4 +1,4 @@
-.PHONY: cdb-check-env cdb-connect cdb-migrate-down cdb-migrate-up cdb-start deps docker-build-cdb docker-build-microservices docker-build-monolith docker-build-and-push-microservices docker-build-and-push-monolith docker-push-cdb docker-push-microservices docker-push-monolith docker-run ensure-proto-deps grafana k8s-cdb-connect k8s-grafana k8s-microservices-delete k8s-monolith-delete k8s-microservices-deploy k8s-monolith-deploy k8s-monolith-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto run-monolith tags test
+.PHONY: cdb-check-env cdb-connect cdb-dashboard cdb-migrate-down cdb-migrate-up cdb-start deps docker-build-cdb docker-build-microservices docker-build-monolith docker-build-and-push-microservices docker-build-and-push-monolith docker-push-cdb docker-push-microservices docker-push-monolith docker-run ensure-proto-deps grafana k8s-cdb-connect k8s-grafana k8s-microservices-delete k8s-monolith-delete k8s-microservices-deploy k8s-monolith-deploy k8s-monolith-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto run-monolith tags test
 
 define dsn_missing_error
 
@@ -47,6 +47,9 @@ endif
 
 cdb-connect:
 	@psql postgresql://root@127.0.0.1:26257?sslmode=disable
+
+cdb-dashboard:
+	@firefox http://localhost:8080
 
 cdb-migrate-down: migrate-check-deps cdb-check-env
 	migrate -source file://scorestore/cdb/migrations -database '$(subst postgresql,cockroach,${CDB_DSN})' down
@@ -210,7 +213,7 @@ proto: ensure-proto-deps
 	dbspgraph/proto/api.proto
 
 run-monolith:
-	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1s" --scanner-num-workers 12 --gravitas-tx-fetchers 10 --gravitas-num-workers 2
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "30m" --scanner-num-workers 12 --gravitas-tx-fetchers 10 --gravitas-num-workers 2
 
 
 tags:

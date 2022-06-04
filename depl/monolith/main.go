@@ -113,11 +113,15 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	// scanner
 	flag.IntVar(&scannerCfg.FetchWorkers, "scanner-num-workers", runtime.NumCPU(), "The maximum number of workers to use for scanning eth blocks (defaults to number of CPUs)")
 
-	
+	// partition	
 	partitionDetMode := flag.String("partition-detection-mode", "single", "The partition detection mode to use. Supported values are 'dns=HEADLESS_SERVICE_NAME' (k8s) and 'single' (local dev mode)")
 
+	// scorestore
 	scoreStoreURI := flag.String("score-store-uri", "in-memory://", "The URI for connecting to the scorestore (supported URIs: in-memory://, postgresql://user@host:26257/etherscan?sslmode=disable) (defaults to in-memory)")
 
+	// txgraph
+	var txGraphCache bool
+	flag.BoolVar(&txGraphCache, "tx-graph-cache", true, "true - cache inserts in-memory to reduce load on DB")
 	txGraphURI := flag.String("tx-graph-uri", "in-memory://", "The URI for connecting to the txgraph (supported URIs: in-memory://, postgresql://user@host:26257/etherscan?sslmode=disable) Defaults to in-memory")
 
 	flag.Parse()
@@ -144,7 +148,7 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	}
 
 	// Retrieve a suitable txgraph implementation and plug it into the service configurations.
-	txGraphAPI, err := getTxGraph(*txGraphURI, logger)
+	txGraphAPI, err := getTxGraph(*txGraphURI, txGraphCache, logger)
 	if err != nil {
 		logger.WithField("err", err).Error("get tx graph")
 		return nil, err
@@ -245,7 +249,7 @@ type txGraphAPI interface {
 	WalletTxs(address string) (txgraph.TxIterator, error)
 }
 
-func getTxGraph(txGraphURI string, logger *logrus.Entry) (txGraphAPI, error) {
+func getTxGraph(txGraphURI string, txGraphCache bool, logger *logrus.Entry) (txGraphAPI, error) {
 	if txGraphURI == "" {
 		return nil, xerrors.Errorf("tx graph URI must be specified with --tx-graph-uri")
 	}
@@ -261,7 +265,7 @@ func getTxGraph(txGraphURI string, logger *logrus.Entry) (txGraphAPI, error) {
 		return memgraph.NewInMemoryGraph(), nil
 	case "postgresql":
 		logger.Info("using CDB graph")
-		return cdbgraph.NewCDBGraph(txGraphURI)
+		return cdbgraph.NewCDBGraph(txGraphURI, txGraphCache)
 	default:
 		return nil, xerrors.Errorf("unsupported tx graph URI scheme: %q", uri.Scheme)
 	}

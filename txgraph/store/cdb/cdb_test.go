@@ -25,7 +25,7 @@ func (s *CDBGraphTestSuite) SetUpSuite(c *gc.C) {
 		c.Skip("Missing CDB_DSN envvar; skipping cockroachdb-backed graph test suite")
 	}
 
-	g, err := NewCDBGraph(dsn)
+	g, err := NewCDBGraph(dsn, false)
 	c.Assert(err, gc.IsNil)
 	s.SetGraph(g)
 	s.db = g.db

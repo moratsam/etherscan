@@ -52,6 +52,11 @@ func makeApp() *cli.App {
 	app.Name = appName
 	app.Version = appSha
 	app.Flags = []cli.Flag{
+		cli.BoolTFlag{
+			Name:		"tx-graph-cache",
+			EnvVar:	"TX_GRAPH_CACHE",
+			Usage: 	"true - cache inserts in-memory to reduce load on DB",
+		},
 		cli.StringFlag{
 			Name:   "tx-graph-uri",
 			Value:  "in-memory://",
@@ -80,7 +85,7 @@ func runMain(appCtx *cli.Context) error {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	graph, err := getTxGraph(appCtx.String("tx-graph-uri"))
+	graph, err := getTxGraph(appCtx.String("tx-graph-uri"), appCtx.Bool("tx-graph-cache"))
 	if err != nil {
 		return err
 	}
@@ -136,7 +141,7 @@ func runMain(appCtx *cli.Context) error {
 	return nil
 }
 
-func getTxGraph(txGraphURI string) (txgraph.Graph, error) {
+func getTxGraph(txGraphURI string, cache bool) (txgraph.Graph, error) {
 	if txGraphURI == "" {
 		return nil, xerrors.Errorf("tx graph URI must be specified with --tx-graph-uri")
 	}
@@ -152,7 +157,7 @@ func getTxGraph(txGraphURI string) (txgraph.Graph, error) {
 		return memgraph.NewInMemoryGraph(), nil
 	case "postgresql":
 		logger.Info("using CDB graph")
-		return cdbgraph.NewCDBGraph(txGraphURI)
+		return cdbgraph.NewCDBGraph(txGraphURI, cache)
 	default:
 		return nil, xerrors.Errorf("unsupported tx graph URI scheme: %q", uri.Scheme)
 	}

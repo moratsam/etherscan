@@ -154,7 +154,6 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 	c.Assert(wallet.Address, gc.Equals, toAddr, gc.Commentf("find wallet returned wrong address"))
 
-
 	// Insert transaction
 	err = s.g.InsertTxs([]*graph.Tx{tx})
 	c.Assert(err, gc.IsNil)
@@ -186,7 +185,6 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	txFrom.Timestamp = txFrom.Timestamp.Truncate(time.Millisecond)
 	c.Assert(txFrom, gc.DeepEquals, tx)
 
-	s.g.ClearWalletCache()
 }
 
 func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
@@ -207,7 +205,6 @@ func (s *SuiteBase) TestUpsertWallet(c *gc.C) {
 	retrieved, err := s.g.FindWallet(testAddr)
 	c.Assert(err, gc.IsNil)
 	c.Assert(retrieved, gc.DeepEquals, original, gc.Commentf("lookup by Address returned wrong wallet"))
-	s.g.ClearWalletCache()
 }
 
 func (s *SuiteBase) TestFindWallet(c *gc.C) {
@@ -227,7 +224,6 @@ func (s *SuiteBase) TestFindWallet(c *gc.C) {
 	// Lookup unknown wallet
 	_, err = s.g.FindWallet("inexistent")
 	c.Assert(xerrors.Is(err, graph.ErrNotFound), gc.Equals, true)
-	s.g.ClearWalletCache()
 }
 
 // Verifies that multiple clients can concurrently access the store.
@@ -306,7 +302,6 @@ func (s *SuiteBase) TestConcurrentTxIterators(c *gc.C) {
 		case <- time.After(10 * time.Second):
 			c.Fatal("timed out waiting for test to complete")
 	}
-	s.g.ClearWalletCache()
 }
 
 // Verifies that multiple clients can concurrently access the store.
@@ -361,7 +356,6 @@ func (s *SuiteBase) TestConcurrentWalletIterators(c *gc.C) {
 		case <- time.After(10 * time.Second):
 			c.Fatal("timed out waiting for test to complete")
 	}
-	s.g.ClearWalletCache()
 }
 
 func (s *SuiteBase) iteratePartitionedWallets(c *gc.C, numPartitions int) int {
@@ -400,7 +394,6 @@ func (s *SuiteBase) TestPartitionedWalletIterators(c *gc.C) {
 	// Check with both odd and even partition counts to check for rounding-related bugs.
 	c.Assert(s.iteratePartitionedWallets(c, numPartitions), gc.Equals, numWallets)
 	c.Assert(s.iteratePartitionedWallets(c, numPartitions+1), gc.Equals, numWallets)
-	s.g.ClearWalletCache()
 }
 
 // If address is not 40 chars long, string comparisons will not work as expected.

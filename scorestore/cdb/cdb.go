@@ -76,12 +76,12 @@ func (g *CDBScoreStore) bulkUpsertScores(scores []*scorestore.Score) error {
 // Upserts Scores.
 // On conflict of (wallet, scorer), the value will be updated.
 func (ss *CDBScoreStore) UpsertScores(scores []*scorestore.Score) error {
-	// Upsert scores in batches.
-	batchSize := 1500
-	numWorkers := 3
 	type slice struct {
 		startIx, endIx int
 	}
+	// Upsert scores in batches.
+	batchSize := 1500
+	numWorkers := 6
 	sliceCh := make(chan slice, 1)
 	doneCh := make(chan struct{}, numWorkers)
 	errCh := make(chan error, 1)
@@ -89,16 +89,14 @@ func (ss *CDBScoreStore) UpsertScores(scores []*scorestore.Score) error {
 	inserter := func() {
 		defer func(){ doneCh <- struct{}{} }()
 		for {
-			select {
-			case slice, open := <- sliceCh:
-				if !open {
-					// Channel was closed.
-					return
-				}
-				if err := ss.bulkUpsertScores(scores[slice.startIx:slice.endIx]); err != nil {
-					maybeEmitError(err, errCh)
-					return
-				}
+			slice, open := <- sliceCh
+			if !open {
+				// Channel was closed.
+				return
+			}
+			if err := ss.bulkUpsertScores(scores[slice.startIx:slice.endIx]); err != nil {
+				maybeEmitError(err, errCh)
+				return
 			}
 		}
 	}

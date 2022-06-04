@@ -82,10 +82,7 @@ func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
 // Calls to Scan block until the block iterator is exhausted (which never happens),
 // or an error occurs or the context is cancelled.
 func (s *Scanner) Scan(ctx context.Context, blockIt graph.BlockIterator, txGraph Graph) (int, error) {
-	sink := &countingSink{
-		txGraph: txGraph,
-		consumedBlocks: make([]*graph.Block, 3000),
-	}
+	sink := &countingSink{ txGraph: txGraph }
 	err := s.p.Process(ctx, &blockSource{blockIt: blockIt}, sink)
 	return sink.getCount(), err
 }
@@ -111,8 +108,6 @@ func (so *blockSource) Payload() pipeline.Payload {
 // Implements the pipeline.Sink.
 type countingSink struct {
 	txGraph				Graph
-	consumedBlocks		[]*graph.Block
-	consumedBlocksIx	int
 	count					int	
 }
 
@@ -124,18 +119,12 @@ func (si *countingSink) Consume(_ context.Context, p pipeline.Payload) error {
 	si.count++
 	promScannerCnt.Inc()
 
-	 si.consumedBlocks[si.consumedBlocksIx] = &graph.Block{
-		Number: p.(*scannerPayload).BlockNumber,
-		Processed: true,
-	}
-	si.consumedBlocksIx++
-
-	if si.consumedBlocksIx == len(si.consumedBlocks) {
-		si.consumedBlocksIx = 0
-		return si.txGraph.UpsertBlocks(si.consumedBlocks)
-	}
-
-	return nil
+	 return si.txGraph.UpsertBlocks([]*graph.Block{
+	 	&graph.Block{
+			Number: p.(*scannerPayload).BlockNumber,
+			Processed: true,
+		},
+	})
 }
 
 func (si *countingSink) getCount() int {

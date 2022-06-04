@@ -103,11 +103,6 @@ type Graph interface {
 	// Inserts new transactions.
 	InsertTxs(tx []*Tx) error
 
-	// Clears cache of wallets stored locally by the graph instance.
-	// The cache is a significant optimisation, since many transactions repeat
-	// between wallets.
-	ClearWalletCache()
-
 	// Creates new wallets or updates existing ones.
 	UpsertWallets(wallets []*Wallet) error
 

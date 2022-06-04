@@ -183,6 +183,10 @@ func setupServices(logger *logrus.Entry) (service.Group, error) {
 	gravitasCfg.PartitionDetector	= partDet
 	gravitasCfg.Logger				= logger.WithField("service", "gravitas-calculator")
 	if svc, err = gravitas.NewService(gravitasCfg); err == nil {
+		/*
+		logger.Warn("SKIPPING gravitas service")
+		_ = svc
+		*/
 		svcGroup = append(svcGroup, svc)
 	} else {
 		return nil, err

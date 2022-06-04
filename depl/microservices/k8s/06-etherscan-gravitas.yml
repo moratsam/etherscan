@@ -40,7 +40,7 @@ spec:
         image: localhost:5000/etherscan-gravitas:latest
         args:
           - "-mode=master"
-          - "-gravitas-update-interval=6s"
+          - "-gravitas-update-interval=30s"
           - "-master-port=8080"
         ports:
         - containerPort: 8080
@@ -62,7 +62,7 @@ spec:
     matchLabels:
       app: etherscan
       component: etherscan-gravitas-worker-instance
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
@@ -77,7 +77,7 @@ spec:
           - "-mode=worker"
           - "-master-endpoint=gravitas-master:8080"
           - "-gravitas-num-workers=4"
-          - "-gravitas-tx-fetchers=15"
+          - "-gravitas-tx-fetchers=2"
           - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
           - "-score-store-api=etherscan-scorestore.etherscan-data:8080"
         ports:

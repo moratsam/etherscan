@@ -54,9 +54,11 @@ spec:
         imagePullPolicy: Always
         image: localhost:5000/etherscan-monolith:latest
         args:
+          - "-ethclient-local=false"
+          - "-gravitas-num-workers=2"
           - "-gravitas-update-interval=1m"
           - "-partition-detection-mode=dns=etherscan-headless"
-          - "-scanner-num-workers=20"
+          - "-scanner-num-workers=10"
           - "-score-store-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
           - "-tx-graph-uri=postgresql://cdb-cockroachdb-public.etherscan-data:26257/etherscan?sslmode=disable"
         ports:

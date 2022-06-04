@@ -11,4 +11,3 @@ create table if not exists tx (
 );
 
 create index if not exists idx_tx_from on tx("from");
-create index if not exists idx_tx_to on tx("to");

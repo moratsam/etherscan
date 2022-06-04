@@ -41,7 +41,7 @@ func (w *Worker) Dial(masterEndpoint string, dialTimeout time.Duration) error {
 		defer cancelFn()
 	}
 
-	conn, err := grpc.DialContext(dialCtx, masterEndpoint, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.DialContext(dialCtx, masterEndpoint, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*20), grpc.MaxCallSendMsgSize(1024*1024*20)))
 	if err != nil {
 		return xerrors.Errorf("unable to dial master: %w", err)
 	}

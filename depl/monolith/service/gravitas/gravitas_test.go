@@ -112,8 +112,6 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 
 	mockTxIt2 := mocks.NewMockTxIterator(ctrl)
 	gomock.InOrder(
-		mockTxIt2.EXPECT().Next().Return(true),
-		mockTxIt2.EXPECT().Tx().Return(tx),
 		mockTxIt2.EXPECT().Next().Return(false),
 	)
 	mockTxIt2.EXPECT().Error().Return(nil)
@@ -125,17 +123,18 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	mockGraph.EXPECT().WalletTxs(addr1).Return(mockTxIt, nil)
 	mockGraph.EXPECT().WalletTxs(addr2).Return(mockTxIt2, nil)
 
-	score1 := &ss.Score{
-		Wallet:	addr1,
-		Scorer:	"balance_eth",
-		Value:	big.NewFloat(-2),
+	scores := []*ss.Score{
+		&ss.Score{
+			Wallet:	addr1,
+			Scorer:	"balance_eth",
+			Value:	big.NewFloat(-2),
+		},
+		&ss.Score{
+			Wallet:	addr2,
+			Scorer:	"balance_eth",
+			Value:	big.NewFloat(1),
+		},
 	}
-	score2 := &ss.Score{
-		Wallet:	addr2,
-		Scorer:	"balance_eth",
-		Value:	big.NewFloat(1),
-	}
-	scores := []*ss.Score{score1, score2}
 	// TODO this sometimes fails because the two scores are reversed.
 	mockScoreStore.EXPECT().UpsertScores(scores)
 
@@ -147,7 +146,8 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 
 		// Wait until the main loop calls time.After again and cancel
 		// the context.
-		c.Assert(clk.WaitAdvance(time.Millisecond, 10*time.Second, 1), gc.IsNil)
+		time.Sleep(1*time.Second)
+		c.Assert(clk.WaitAdvance(100*time.Millisecond, 10*time.Second, 1), gc.IsNil)
 		cancelFn()
 	}()
 
@@ -155,7 +155,7 @@ func (s *GravitasTestSuite) TestFullRun(c *gc.C) {
 	err = svc.Run(ctx)
 	c.Assert(err, gc.IsNil)
 	c.Assert(svc.calculator.Graph().Aggregator("wallet_count").Get(), gc.Equals, 2)
-	c.Assert(svc.calculator.Graph().Aggregator("tx_count").Get().(int)/2, gc.Equals, 1)
+	c.Assert(svc.calculator.Graph().Aggregator("tx_count").Get().(int), gc.Equals, 1)
 }
 
 func (s *GravitasTestSuite) TestRunWhileInNonZeroPartition(c *gc.C) {

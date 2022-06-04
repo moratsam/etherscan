@@ -19,11 +19,16 @@ func Test(t *testing.T) {
 	gc.TestingT(t)
 }
 
+type edge struct {
+	from, to string
+}
+
 type spec struct {
-	descr     string
-	vertices_ids  []string
-	vertices_data [][]*txgraph.Tx
-	expScores map[string]*big.Float
+	descr				string
+	vertices_ids 	[]string
+	vertices_data	[][]*txgraph.Tx
+	edges				[]edge
+	expScores		map[string]*big.Float
 }
 
 type CalculatorTestSuite struct {}
@@ -31,15 +36,16 @@ type CalculatorTestSuite struct {}
 func (s *CalculatorTestSuite) TestSimple1(c *gc.C) {
 	address1 := createAddressFromInt(1)
 	address2 := createAddressFromInt(2)
-	tx := createTx(address1, address2, 1, 0)
+	tx := createTx(address1, address2, 3, 1)
 
 	spec := spec{
-		descr: `1 -> 2 sends 1 eth, transaction fee is 0`,
-		vertices_ids: []string{ address1, address2 },
-		vertices_data: [][]*txgraph.Tx{ []*txgraph.Tx{tx}, []*txgraph.Tx{tx} },
-		expScores: map[string]*big.Float{
-			address1: big.NewFloat(-1),
-			address2: big.NewFloat(1),
+		descr:			`1 -> 2 sends 3 eth, transaction fee is 1`,
+		vertices_ids:	[]string{ address1, address2 },
+		vertices_data:	[][]*txgraph.Tx{ []*txgraph.Tx{tx}, []*txgraph.Tx{} },
+		edges:			[]edge{ {address1, address2} },
+		expScores: 		map[string]*big.Float{
+			address1: big.NewFloat(-4),
+			address2: big.NewFloat(3),
 		},
 	}
 
@@ -68,13 +74,21 @@ func (s *CalculatorTestSuite) TestSimple2(c *gc.C) {
 3 -> 1 sends 5 eth, transaction fee is 13
 3 -> 2 sends 6 eth, transaction fee is 17`,
 
-		vertices_ids: []string{ address1, address2, address3 },
-		vertices_data: [][]*txgraph.Tx{
-			[]*txgraph.Tx{txs[0], txs[1], txs[2], txs[4]},
-			[]*txgraph.Tx{txs[0], txs[1], txs[3], txs[5]},
-			[]*txgraph.Tx{txs[2], txs[4], txs[5]},
+		vertices_ids:	[]string{ address1, address2, address3 },
+		vertices_data:	[][]*txgraph.Tx{
+			[]*txgraph.Tx{txs[0], txs[1], txs[2]},
+			[]*txgraph.Tx{txs[3]},
+			[]*txgraph.Tx{txs[4], txs[5]},
 		},
-		expScores: map[string]*big.Float{
+		edges:			[]edge{
+			{address1, address2},
+			{address1, address2},
+			{address1, address3},
+			{address2, address2},
+			{address3, address1},
+			{address3, address2},
+		},
+		expScores: 		map[string]*big.Float{
 			address1: big.NewFloat(-112),
 			address2: big.NewFloat(96),
 			address3: big.NewFloat(-39),
@@ -96,11 +110,15 @@ func (s *CalculatorTestSuite) assertGravitasScores(c *gc.C, spec spec) {
 	for i, id := range spec.vertices_ids {
 		calc.AddVertex(id, spec.vertices_data[i])
 	}
+	for _, e := range spec.edges {
+		c.Assert(calc.AddEdge(e.from, e.to), gc.IsNil)
+	}
 
 	ex := calc.Executor()
 	err = ex.RunToCompletion(context.TODO())
 	c.Assert(err, gc.IsNil)
 	c.Logf("converged after %d steps", ex.Superstep())
+	c.Assert(ex.Superstep(), gc.Equals, 3)
 
 	err = calc.Scores(func(id string, score *big.Float) error {
 		c.Assert(score.String(), gc.Equals, spec.expScores[id].String(), gc.Commentf("expected score for %v to be %f;", id, spec.expScores[id].String(), score.String()))

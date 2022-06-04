@@ -159,14 +159,14 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	err = s.g.InsertTxs([]*graph.Tx{tx})
 	c.Assert(err, gc.IsNil)
 
-	// Retrieve it from WalletTxs iterators of both wallets
+	// Retrieve it from WalletTxs iterator of the "from" wallet, but not from "to".
 	itFrom, err := s.g.WalletTxs(fromAddr)
 	c.Assert(err, gc.IsNil)
 	itTo, err := s.g.WalletTxs(toAddr)
 	c.Assert(err, gc.IsNil)
 
 	i := 0
-	var txFrom, txTo *graph.Tx
+	var txFrom *graph.Tx
 	for i=0; itFrom.Next(); i++ {
 		txFrom = itFrom.Tx()
 		txHash := tx.Hash
@@ -177,22 +177,14 @@ func (s *SuiteBase) TestInsertTxs(c *gc.C) {
 	c.Assert(itFrom.Close(), gc.IsNil)
 	c.Assert(i, gc.Equals, 1, gc.Commentf("wrong number of txs for a wallet"))
 
-	for i=0; itTo.Next(); i++ {
-		txTo = itTo.Tx()
-		txHash := tx.Hash
-		c.Assert(txHash, gc.Equals, testHash, gc.Commentf("iterator returned wrong tx"))
-		c.Assert(tx.Value, gc.Equals, initValue, gc.Commentf("tx Value got overwritten"))
-	}
-	c.Assert(i, gc.Equals, 1, gc.Commentf("wrong number of txs for a wallet"))
+	c.Assert(itTo.Next(), gc.Equals, false, gc.Commentf("iterator shouldn't return receiving txs"))
 	c.Assert(itTo.Error(), gc.IsNil)
 	c.Assert(itTo.Close(), gc.IsNil)
 
 	// Assert their equivalence
 	tx.Timestamp = tx.Timestamp.Truncate(time.Millisecond)
 	txFrom.Timestamp = txFrom.Timestamp.Truncate(time.Millisecond)
-	txTo.Timestamp = txTo.Timestamp.Truncate(time.Millisecond)
 	c.Assert(txFrom, gc.DeepEquals, tx)
-	c.Assert(txTo, gc.DeepEquals, tx)
 
 	s.g.ClearWalletCache()
 }

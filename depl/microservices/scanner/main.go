@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"golang.org/x/xerrors"
@@ -108,6 +109,19 @@ func runMain(appCtx *cli.Context) error {
 		return err
 	}
 
+	// Expose prometheus at localhost:31933/metrics
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		http.ListenAndServe(":31933", nil)
+	}()
+
+	// Start pprof server
+	pprofListener, err := net.Listen("tcp", fmt.Sprintf(":%d", appCtx.Int("pprof-port")))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = pprofListener.Close() }()
+
 	// Start scanner.
 	wg.Add(1)
 	go func() {
@@ -117,13 +131,6 @@ func runMain(appCtx *cli.Context) error {
 			cancelFn()
 		}
 	}()
-
-	// Start pprof server
-	pprofListener, err := net.Listen("tcp", fmt.Sprintf(":%d", appCtx.Int("pprof-port")))
-	if err != nil {
-		return err
-	}
-	defer func() { _ = pprofListener.Close() }()
 
 	wg.Add(1)
 	go func() {

@@ -149,16 +149,7 @@ func (s *ServerTestSuite) TestInsertTxs(c *gc.C) {
 
 	it, err = s.cli.WalletTxs(wallets[1].Address)
 	c.Assert(err, gc.IsNil)
-	cnt = 0
-	for it.Next() {
-		next := it.Tx()
-		if err != nil {
-			c.Assert(err, gc.IsNil)
-		}
-		c.Assert(next, gc.DeepEquals, txs[0], gc.Commentf("tx should equal only tx"))
-		cnt++;
-	}
-	c.Assert(cnt, gc.Equals, 1)
+	c.Assert(it.Next(), gc.Equals, false)
 	c.Assert(it.Error(), gc.IsNil)
 	c.Assert(it.Close(), gc.IsNil)
 }

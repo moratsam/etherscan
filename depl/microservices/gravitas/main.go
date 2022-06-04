@@ -33,12 +33,6 @@ var (
 )
 
 func main() {
-	// Expose prometheus at localhost:31933/metrics
-	http.Handle("/metrics", promhttp.Handler())
-	go func() {
-		http.ListenAndServe(":31933", nil)
-	}()
-
 	host, _ := os.Hostname()
 	rootLogger := logrus.New()
 	rootLogger.SetFormatter(new(logrus.JSONFormatter))
@@ -73,7 +67,7 @@ func makeApp() *cli.App {
 		cli.DurationFlag{
 			Name:	"master-dial-timeout",
 			EnvVar: "MASTER_DIAL_TIMEOUT",
-			Value:  25 * time.Second,
+			Value:  15 * time.Second,
 			Usage:  "The timeout for establishing a connection to the master node (worker mode)",
 		},
 		cli.IntFlag{
@@ -96,7 +90,7 @@ func makeApp() *cli.App {
 		},
 		cli.DurationFlag{
 			Name:	"worker-acquire-timeout",
-			Value:  25*time.Second,
+			Value:  15*time.Second,
 			EnvVar: "WORKER_ACQUIRE_TIMEOUT",
 			Usage:  "The time that the master waits for the requested number of workers to be connected before skipping a pass (master mode)",
 		},
@@ -176,7 +170,12 @@ func runMain(appCtx *cli.Context) error {
 		return xerrors.Errorf("unsupported mode %q; please specify one of: master, worker", appCtx.String("role"))
 	}
 
-	var wg sync.WaitGroup
+	// Expose prometheus at localhost:31933/metrics
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		http.ListenAndServe(":31933", nil)
+	}()
+
 	// Start pprof server
 	pprofListener, err := net.Listen("tcp", fmt.Sprintf(":%d", appCtx.Int("pprof-port")))
 	if err != nil {
@@ -184,6 +183,7 @@ func runMain(appCtx *cli.Context) error {
 	}
 	defer func() { _ = pprofListener.Close() }()
 
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -228,17 +228,17 @@ func getAPIs(ctx context.Context, scoreStoreAPI, txGraphAPI string) (*ssapi.Scor
 		return nil, nil, xerrors.Errorf("tx graph API must be specified with --tx-graph-api")
 	}
 
-	dialCtx, cancelFn := context.WithTimeout(ctx, 15*time.Second)
+	dialCtx, cancelFn := context.WithTimeout(ctx, 10*time.Second)
 	defer cancelFn()
-	scoreStoreConn, err := grpc.DialContext(dialCtx, scoreStoreAPI, grpc.WithInsecure(), grpc.WithBlock())
+	scoreStoreConn, err := grpc.DialContext(dialCtx, scoreStoreAPI, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*20), grpc.MaxCallSendMsgSize(1024*1024*20)))
 	if err != nil {
 		return nil, nil, xerrors.Errorf("could not connect to score store API: %w", err)
 	}
 	scoreStoreCli := ssapi.NewScoreStoreClient(ctx, protossapi.NewScoreStoreClient(scoreStoreConn))
 
-	dialCtx, cancelFn = context.WithTimeout(ctx, 15*time.Second)
+	dialCtx, cancelFn = context.WithTimeout(ctx, 10*time.Second)
 	defer cancelFn()
-	txGraphConn, err := grpc.DialContext(dialCtx, txGraphAPI, grpc.WithInsecure(), grpc.WithBlock())
+	txGraphConn, err := grpc.DialContext(dialCtx, txGraphAPI, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*20), grpc.MaxCallSendMsgSize(1024*1024*20)))
 	if err != nil {
 		return nil, nil, xerrors.Errorf("could not connect to tx graph API: %w", err)
 	}

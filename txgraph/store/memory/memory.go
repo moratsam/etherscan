@@ -24,8 +24,7 @@ type InMemoryGraph struct {
 	txs 		map[string]*graph.Tx 		//[tx hash] --> Tx
 	wallets	map[string]*graph.Wallet	//[wallet address] --> Wallet
 
-	// [wallet address] --> list of hashes of the transactions a wallet is connected to.
-	// This means the wallet is either the sender or the receiver of the transaction.
+	// [wallet address] --> list of hashes of the transactions originating from a wallet.
 	walletTxsMap map[string]txList
 }
 
@@ -157,9 +156,6 @@ func (g *InMemoryGraph) InsertTxs(txs []*graph.Tx) error {
 
 		// Append the transaction hash to txLists for wallets listed in To and From
 		g.walletTxsMap[txCopy.From] = append(g.walletTxsMap[txCopy.From], txCopy.Hash)
-		if txCopy.From != txCopy.To {
-			g.walletTxsMap[txCopy.To] = append(g.walletTxsMap[txCopy.To], txCopy.Hash)
-		}
 	}
 	return nil
 }
@@ -202,7 +198,7 @@ func (g *InMemoryGraph) FindWallet(address string) (*graph.Wallet, error) {
 	return wCopy, nil
 }
 
-// Returns an iterator for the set of transactions connected to a wallet.
+// Returns an iterator for the set of transactions originating from a wallet.
 func (g *InMemoryGraph) WalletTxs(address string) (graph.TxIterator, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()

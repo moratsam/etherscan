@@ -63,10 +63,6 @@ func (c *Calculator) AddVertex(id string, txs []*txgraph.Tx) {
 // AddEdge inserts a directed edge from src to dst. If both src and dst refer
 // to the same vertex then this is a no-op.
 func (c *Calculator) AddEdge(src, dst string) error {
-	// Don't allow self-links
-	if src == dst {
-		return nil
-	}
 	return c.g.AddEdge(src, dst, nil)
 }
 
@@ -83,9 +79,9 @@ func (c *Calculator) Executor() *bspgraph.Executor {
 		PreStep: func(_ context.Context, g *bspgraph.Graph) error {
 			return nil
 		},
-		PostStepKeepRunning: func(_ context.Context, g *bspgraph.Graph, _ int) (bool, error) {
-			// Everything should be done in superstep 0.
-			return g.Superstep() < 1, nil
+		PostStepKeepRunning: func(_ context.Context, g *bspgraph.Graph, activeInStep int) (bool, error) {
+			// Stop when there are no more active vertices.
+			return activeInStep != 0, nil
 		},
 	}
 

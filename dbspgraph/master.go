@@ -54,7 +54,7 @@ func (m *Master) Start() error {
 		return xerrors.Errorf("cannot start server: %w", err)
 	}
 
-	gSrv := grpc.NewServer()
+	gSrv := grpc.NewServer(grpc.MaxRecvMsgSize(1024*1024*20), grpc.MaxSendMsgSize(1024*1024*20))
 	proto.RegisterJobQueueServer(gSrv, &masterRPCHandler{
 		workerPool: m.workerPool,
 		logger:     m.cfg.Logger,

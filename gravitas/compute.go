@@ -3,7 +3,6 @@ package gravitas
 import (
 	"math/big"
 
-	"golang.org/x/xerrors"
 
 	"github.com/moratsam/etherscan/bspgraph"
 	"github.com/moratsam/etherscan/bspgraph/message"
@@ -19,42 +18,58 @@ type VertexData struct {
 	Txs	[]*txgraph.Tx
 }
 
+// A TxMessage is sent from the sender vertex of a transaction to it's recipient vertex.
+// With them, the value of transactions is propagated through the graph.
+type TxMessage struct {
+	Value *big.Float
+}
+
+// Type returns the type of this message.
+func (m TxMessage) Type() string { return "eth_value" }
+
 // makeComputeFunc returns a ComputeFunc that executes the Gravitas calculation algorhitm.
 func makeComputeFunc() bspgraph.ComputeFunc {
-	return func(g *bspgraph.Graph, v *bspgraph.Vertex, _ message.Iterator) error {
+	return func(g *bspgraph.Graph, v *bspgraph.Vertex, msgIt message.Iterator) error {
 		superstep := g.Superstep()
-
-		// Use an aggregator to count the number of vertices in the graph.
-		if superstep == 0 {
-			walletCountAgg := g.Aggregator("wallet_count")
-			walletCountAgg.Aggregate(1)
-			return nil
-		} else if  superstep > 1 {
-			return xerrors.New("everything should be basta in first step")
-		}
-
 		vData := v.Value().(VertexData)
 
-		// Calculate value of all incoming transactions,
-		// decreased by value of all outgoing transactions and their fees.
-		sum := big.NewFloat(0)
-		for _, tx := range vData.Txs {
-			if tx.From == v.ID() && tx.To != v.ID() {
-				sum = sum.Sub(sum, new(big.Float).SetInt(tx.Value))
-				sum = sum.Sub(sum, new(big.Float).SetInt(tx.TransactionFee))
-			} else if tx.From != v.ID() && tx.To == v.ID() {
-				sum = sum.Add(sum, new(big.Float).SetInt(tx.Value))
-			} else {
-				sum = sum.Sub(sum, new(big.Float).SetInt(tx.TransactionFee))
+		switch superstep {
+		case 0:
+			// Use an aggregator to count the number of vertices and txs in the graph.
+			walletCountAgg := g.Aggregator("wallet_count")
+			walletCountAgg.Aggregate(1)
+			txCountAgg := g.Aggregator("tx_count")
+			txCountAgg.Aggregate(len(vData.Txs))
+			return nil
+		case 1:
+			// Subtract from the vertex value the sum cost of all outgoing txs (value + fees).
+			// For every tx, send its value to the recipient.
+			sum := big.NewFloat(0)
+			for _, tx := range vData.Txs {
+				sum.Add(sum, new(big.Float).SetInt(tx.Value))
+				sum.Add(sum, new(big.Float).SetInt(tx.TransactionFee))
+
+				msg := TxMessage{Value: new(big.Float).SetInt(tx.Value)}
+				if err := g.SendMessage(tx.To, msg); err != nil {
+					return err
+				}
 			}
+			vData.Value.Sub(vData.Value, sum)
+			v.SetValue(vData)
+		case 2:
+			// Add to the vertex value the sum of all incoming tx values (sent in superstep 1).
+			sum := big.NewFloat(0).Set(vData.Value)
+			for msgIt.Next() {
+				msgValue := msgIt.Message().(TxMessage).Value
+				sum.Add(sum, msgValue)
+			}
+			vData.Value = sum
+			v.SetValue(vData)
 		}
 
-		txCountAgg := g.Aggregator("tx_count")
-		txCountAgg.Aggregate(len(vData.Txs))
-
-		vData.Value = sum
-		v.SetValue(vData)
-
+		// Calculator will stop when all vertices are frozen (see PostStepKeepRunning).
+		// A frozen vertex gets unfrozen upon receival of a message.
+		v.Freeze()
 		return nil
 	}
 }

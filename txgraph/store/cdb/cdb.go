@@ -28,7 +28,7 @@ upsert into block("number", processed) values ($1, $2) returning processed`
 
 	walletsInPartitionQuery = `select address from wallet where address >= $1 and address < $2`
 
-	walletTxsQuery = `select * from tx where "from"=$1 or "to"=$1`
+	walletTxsQuery = `select * from tx where "from"=$1`
 
 	// Compile-time check for ensuring CDBGraph implements Graph.
 	_ graph.Graph = (*CDBGraph)(nil)
@@ -324,7 +324,7 @@ func (g *CDBGraph) Wallets(fromAddr, toAddr string) (graph.WalletIterator, error
 	return &walletIterator{rows: rows}, nil
 }
 
-// Returns an iterator for the set of transactions whose from or to field equals to address.
+// Returns an iterator for the set of transactions originating from a wallet address.
 func (g *CDBGraph) WalletTxs(address string) (graph.TxIterator, error) {
 	rows, err := g.db.Query(walletTxsQuery, address)
 	if err != nil {

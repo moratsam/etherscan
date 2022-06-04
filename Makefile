@@ -1,4 +1,4 @@
-.PHONY: cdb-check-env cdb-connect cdb-migrate-down cdb-migrate-up cdb-start deps docker-build-cdb docker-build-microservices docker-build-monolith docker-build-and-push-microservices docker-build-and-push-monolith docker-push-cdb docker-push-microservices docker-push-monolith docker-run ensure-proto-deps k8s-cdb-connect k8s-microservices-delete k8s-monolith-delete k8s-microservices-deploy k8s-monolith-deploy k8s-monolith-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto run-monolith tags test
+.PHONY: cdb-check-env cdb-connect cdb-migrate-down cdb-migrate-up cdb-start deps docker-build-cdb docker-build-microservices docker-build-monolith docker-build-and-push-microservices docker-build-and-push-monolith docker-push-cdb docker-push-microservices docker-push-monolith docker-run ensure-proto-deps grafana k8s-cdb-connect k8s-grafana k8s-microservices-delete k8s-monolith-delete k8s-microservices-deploy k8s-monolith-deploy k8s-monolith-pprof-port-forward migrate-check-deps mocks pprof-cpu pprof-mem proto run-monolith tags test
 
 define dsn_missing_error
 
@@ -132,6 +132,9 @@ ensure-proto-deps:
 k8s-cdb-connect:
 	@kubectl run -it --rm cockroach-client --image=cockroachdb/cockroach --restart=Never -- sql --insecure --host=cdb-cockroachdb-public.etherscan-data
 
+k8s-grafana:
+	@firefox $$(minikube --namespace monitoring service grafana-service --url)
+
 k8s-microservices-delete:
 	@kubectl delete -f depl/microservices/k8s/02-cdb-schema.yml
 	@kubectl delete -f depl/microservices/k8s/03-net-policy.yml
@@ -207,7 +210,7 @@ proto: ensure-proto-deps
 	dbspgraph/proto/api.proto
 
 run-monolith:
-	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "3m" --scanner-num-workers 12 --gravitas-tx-fetchers 10 --gravitas-num-workers 2
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "1s" --scanner-num-workers 12 --gravitas-tx-fetchers 10 --gravitas-num-workers 2
 
 
 tags:

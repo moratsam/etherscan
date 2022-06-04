@@ -156,7 +156,7 @@ func (n *MasterNode) StartJob(_ job.Details, execFactory bspgraph.ExecutorFactor
 func (n *MasterNode) CompleteJob(_ job.Details) error {
 	n.cfg.Logger.WithFields(logrus.Fields{
 		"processed_wallets":			n.calculator.Graph().Aggregator("wallet_count").Get(),
-		"processed_transactions":	n.calculator.Graph().Aggregator("tx_count").Get().(int)/2,
+		"processed_transactions":	n.calculator.Graph().Aggregator("tx_count").Get().(int),
 		"total_pass_time":			n.cfg.Clock.Now().Sub(n.jobStartedAt).String(),
 	}).Info("completed Gravitas update pass")
 	return nil
@@ -167,5 +167,5 @@ func (n *MasterNode) AbortJob(_ job.Details) {}
 
 func (n *MasterNode) Aggregates() (int, int){
 	return n.calculator.Graph().Aggregator("wallet_count").Get().(int),
-		n.calculator.Graph().Aggregator("tx_count").Get().(int)/2
+		n.calculator.Graph().Aggregator("tx_count").Get().(int)
 }

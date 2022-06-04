@@ -219,84 +219,62 @@ type vertex struct {
 	address string
 	txs []*txgraph.Tx
 }
-
 // Loads wallets and their transactions into the graph.
 // To speed things up, <n.cfg.TxFetchers> routines are simultaneously fetching txs.
 func (n *WorkerNode) loadWallets(fromAddr, toAddr string) error {
-	ctx, cancelFn := context.WithCancel(context.Background())
+	localCtx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
 	vertexCh := make(chan vertex, n.cfg.TxFetchers)
 	walletNumCh := make(chan int, 1)
-	doneCh := make(chan struct{}, 1+n.cfg.TxFetchers)
+	doneCh := make(chan struct{}, 1)
 	addrCh := make(chan string, n.cfg.TxFetchers)
 	errCh := make(chan error, 1)
 	for i:=0; i<n.cfg.TxFetchers; i++ {
-		go n.fetchWalletTxs(ctx, addrCh, vertexCh, errCh, doneCh)
+		go n.fetchWalletTxs(localCtx, addrCh, vertexCh, errCh)
 	}
 
-	go n.addVertices(ctx, vertexCh, walletNumCh, doneCh)
-
-	gracefullyStop := func() error {
-		cancelFn() // Cancel context of addVertices & fetchWalletTxs routines.
-		// Wait for the addVertices & fetchWalletTxs routines to finish.
-		for i:=0; i<cap(doneCh); i++ {
-			<- doneCh
-		}
-
-		defer close(vertexCh)
-		defer close(walletNumCh)
-		defer close(doneCh)
-		defer close(addrCh)
-		defer close(errCh)
-
-		// Return an error if it was emitted into the errCh.
-		select {
-		case err := <-errCh:
-			return err
-		default:
-			return nil
-		}
-	}
-
+	go n.addVertices(localCtx, vertexCh, walletNumCh, errCh, doneCh)
+	
 	// Iterate over all the wallets and send their addresses to the addrCh.
-	// If an error occurs in any of the fetchWalletTxs subroutines, return it.
+	// If an error occurs in any of the subroutines, return it.
 	walletIt, err := n.cfg.GraphAPI.Wallets(fromAddr, toAddr)
 	if err != nil {
-		gracefullyStop()
 		return err
 	}
 	walletNum := 0
 	for walletIt.Next() {
+		promGravitasLoadWalletsCnt.Inc()
 		walletNum++
 		wallet := walletIt.Wallet()
 		select {
 		case err := <-errCh:
 			_ = walletIt.Close()
-			gracefullyStop()
 			return err
 		case addrCh <- wallet.Address:
 		}
 	}
-
 	if err = walletIt.Error(); err != nil {
 		_ = walletIt.Close()
-		gracefullyStop()
 		return err
 	}
 	if err = walletIt.Close(); err != nil {
-		gracefullyStop()
 		return err
 	}
 
-	// Send the total number of wallets to the addVertices routine, so it knows when it's done.
+	// Send the total number of wallets to the addVertices routine and wait for it to finish.
 	walletNumCh <- walletNum
-	return gracefullyStop()
+	select {
+		case err := <-errCh:
+			return err
+		case <- doneCh:
+			return nil
+	}
 }
 
 // Reads wallet addresses from the addrCh, creates a iterator for a wallets transactions,
 // sends the address + txs data as a vertex to the addVertices.
 // If it encounters an error, it sends it to the errCh.
-func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error, doneCh chan<- struct{}) {
-	defer func() {doneCh <- struct{}{}}()
+func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, vertexCh chan<- vertex, errCh chan<- error) {
 	var addr string
 	for {
 		select {
@@ -336,13 +314,14 @@ func (n *WorkerNode) fetchWalletTxs(ctx context.Context, addrCh <-chan string, v
 // Reads vertices from the vertexCh and adds them to the graph.
 // Receives the total number of vertices via the walletNumCh.
 // Signals via the doneCh when it's done.
-func (n *WorkerNode) addVertices(ctx context.Context, vertexCh <-chan vertex, walletNumCh <-chan int, doneCh chan<- struct{}) {
-	defer func() {doneCh <- struct{}{}}()
+func (n *WorkerNode) addVertices(ctx context.Context, vertexCh <-chan vertex, walletNumCh <-chan int, errCh chan<- error, doneCh chan<- struct{}) {
+	var err error
 	walletNum := -1
 	walletNumSeen := 0
 	var v vertex
 	for {
 		if walletNumSeen == walletNum {
+			doneCh <- struct{}{}
 			return
 		}
 		select {
@@ -351,8 +330,14 @@ func (n *WorkerNode) addVertices(ctx context.Context, vertexCh <-chan vertex, wa
 		case walletNum = <-walletNumCh:
 		case v = <-vertexCh:
 			walletNumSeen++
-			// Add vertex
+			// Add vertex and its edges.
 			n.calculator.AddVertex(v.address, v.txs)
+			for _,tx := range v.txs {
+				if err = n.calculator.AddEdge(tx.From, tx.To); err != nil {
+					maybeEmitError(err, errCh)
+					return
+				}
+			}
 		}
 	}
 }

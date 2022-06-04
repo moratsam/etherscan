@@ -30,7 +30,7 @@ spec:
     matchLabels:
       app: etherscan
       component: etherscan-scanner-instance
-  replicas: 1
+  replicas: 3
   template:
     metadata:
       labels:
@@ -42,7 +42,7 @@ spec:
         imagePullPolicy: Always
         image: localhost:5000/etherscan-scanner:latest
         args:
-          - "-scanner-num-workers=4"
+          - "-scanner-num-workers=8"
           - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
         ports:
         - name: pprof

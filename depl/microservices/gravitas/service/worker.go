@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -196,11 +197,12 @@ func (n *WorkerNode) CompleteJob(_ job.Details) error {
 		"score_persist_time":		scorePersistTime.String(),
 		"total_pass_time":			time.Since(n.jobStartedAt).String(),
 	}).Info("completed Gravitas update pass")
-	return nil
+
+	return n.calculator.Graph().Reset()
 }
 
 // AbortJob implements job.Runner.
-func (n *WorkerNode) AbortJob(_ job.Details) {}
+func (n *WorkerNode) AbortJob(_ job.Details) { n.calculator.Graph().Reset() }
 
 func (n *WorkerNode) persistScores(vertices []*bspgraph.Vertex) error {
 	scores := make([]*ss.Score, len(vertices))
@@ -212,7 +214,53 @@ func (n *WorkerNode) persistScores(vertices []*bspgraph.Vertex) error {
 		}
 	}
 
-	return n.cfg.ScoreStoreAPI.UpsertScores(scores)
+	type slice struct {
+		startIx, endIx int
+	}
+	// Upsert scores in batches.
+	batchSize := 30000
+	numWorkers := 6
+	sliceCh := make(chan slice, 1)
+	doneCh := make(chan struct{}, numWorkers)
+	errCh := make(chan error, 1)
+
+	inserter := func() {
+		defer func(){ doneCh <- struct{}{} }()
+		for {
+			slice, open := <- sliceCh
+			if !open {
+				// Channel was closed.
+				return
+			}
+			if err := n.cfg.ScoreStoreAPI.UpsertScores(scores[slice.startIx:slice.endIx]); err != nil {
+				maybeEmitError(err, errCh)
+				return
+			}
+		}
+	}
+
+	for i:=0; i < numWorkers; i++ {
+		go inserter()
+	}
+
+	for i:=0; i<len(scores); i+=batchSize {
+		batchSize = int(math.Min(float64(batchSize), float64(len(scores)-i)))
+		select {
+		case err := <- errCh:
+			return err
+		case sliceCh <- slice{startIx: i, endIx: i+batchSize}:
+		}
+	}
+
+	close(sliceCh)
+	for i:=0; i < numWorkers; i++ {
+		select {
+		 case <- doneCh:
+		 case err := <- errCh:
+			return err
+		}
+	}
+	return nil
 }
 
 type vertex struct {

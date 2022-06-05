@@ -76,10 +76,15 @@ spec:
         args:
           - "-mode=worker"
           - "-master-endpoint=gravitas-master:8080"
-          - "-gravitas-num-workers=4"
-          - "-gravitas-tx-fetchers=2"
+          - "-gravitas-num-workers=1"
+          - "-gravitas-tx-fetchers=4"
           - "-tx-graph-api=etherscan-txgraph.etherscan-data:8080"
           - "-score-store-api=etherscan-scorestore.etherscan-data:8080"
         ports:
         - containerPort: 6060
           name: pprof
+        resources:
+          limits:
+            cpu: 75m
+          requests:
+            cpu: 50m

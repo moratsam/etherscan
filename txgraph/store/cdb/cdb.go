@@ -6,7 +6,6 @@ import (
 	"math"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/lib/pq"
 	"golang.org/x/xerrors"
@@ -505,7 +504,7 @@ func (g *CDBGraph) refreshBlocks() error {
 		}
 	}
 	err = g.batchUpsert(blocks)
-	fmt.Println(time.Now(), "Bulk upserted blocks: ", len(blocks))
+	fmt.Println("Bulk upserted blocks: ", len(blocks))
 	return err
 }
 

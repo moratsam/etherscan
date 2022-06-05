@@ -217,7 +217,7 @@ proto: ensure-proto-deps
 	dbspgraph/proto/api.proto
 
 run-monolith:
-	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "6m" --scanner-num-workers 6 --gravitas-tx-fetchers 10 --gravitas-num-workers 4
+	@go run depl/monolith/main.go --tx-graph-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --score-store-uri "postgresql://root@127.0.0.1:26257/etherscan?sslmode=disable" --partition-detection-mode "single" --gravitas-update-interval "20m" --scanner-num-workers 6 --gravitas-tx-fetchers 10 --gravitas-num-workers 4
 
 
 tags:

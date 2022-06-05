@@ -101,7 +101,6 @@ func (svc *Service) Run(ctx context.Context) error {
 				return err
 			}
 		}
-		return nil
 	}
 }
 

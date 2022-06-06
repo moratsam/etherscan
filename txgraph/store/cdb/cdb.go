@@ -143,12 +143,15 @@ func bulkUpsertTxs(txs []*tx) error {
 		valueArgs = append(valueArgs, tx.TransactionFee.String())
 		valueArgs = append(valueArgs, tx.Data)
 	}
-	stmt := fmt.Sprintf(`upsert INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
+	stmt := fmt.Sprintf(`insert INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
 	if _, err := db.Exec(stmt, valueArgs...); err != nil {
-		if isForeignKeyViolationError(err) {
-			err = graph.ErrUnknownAddress
+		stmt := fmt.Sprintf(`upsert INTO tx(hash, status, block, timestamp, "from", "to", value, transaction_fee, data) VALUES %s`, strings.Join(valueStrings, ","))
+		if _, err := db.Exec(stmt, valueArgs...); err != nil {
+			if isForeignKeyViolationError(err) {
+				err = graph.ErrUnknownAddress
+			}
+			return xerrors.Errorf("insert txs: %w", err)
 		}
-		return xerrors.Errorf("insert txs: %w", err)
 	}
 	return nil
 }

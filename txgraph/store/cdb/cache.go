@@ -215,7 +215,7 @@ type cacheCfg struct {
 func newDefaultCacheCfg() cacheCfg{
 	return cacheCfg {
 		maxBlocks:			100,
-		blockBatchSize:	100,
+		blockBatchSize:	35,
 		txBatchSize:		1500,
 		walletBatchSize:	1000,
 		numUpserters:		3,
@@ -239,7 +239,7 @@ func newCache(tokenCh chan<-int, ix int, cfg cacheCfg) cache[int, string] {
 		blocks:		cacheMap[int]{
 			m: 				make(map[int]cacheItem, cfg.maxBlocks), // Declare cap for keks.
 			batchSize:		cfg.blockBatchSize,
-			numUpserters:	1,
+			numUpserters:	cfg.walletBatchSize,
 		},
 		txs:			cacheMap[string]{
 			m: 				make(map[string]cacheItem, 50*cfg.maxBlocks), // Declare cap for keks.

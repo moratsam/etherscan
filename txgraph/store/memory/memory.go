@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"fmt"
 	"sync"
 
 	"golang.org/x/xerrors"
@@ -41,9 +42,6 @@ func NewInMemoryGraph() *InMemoryGraph {
 	return g
 
 }
-
-// No cache implemented for in-memory store.
-func (g *InMemoryGraph) ClearWalletCache() {}
 
 // Checks for missing blocks in the graph and inserts all missing blocks, 
 // so that every block from 1 to the largest found block are in the graph.
@@ -89,6 +87,32 @@ func (g *InMemoryGraph) getUnprocessedBlocks() ([]*graph.Block, error) {
 	}
 
 	return list, nil
+}
+
+func (g *InMemoryGraph) Upsert(items []interface{}) error {
+	fmt.Println("In-memory Upsert doesn't work")
+	var blocks []*graph.Block
+	var txs []*graph.Tx
+	var wallets []*graph.Wallet
+
+	for _,item := range items {
+		switch x := item.(type) {
+		case *graph.Block:
+			blocks = append(blocks, x)
+		case *graph.Tx:
+			txs = append(txs, x)
+		case *graph.Wallet:
+			wallets = append(wallets, x)
+		}
+	}
+
+	if err := g.UpsertWallets(wallets); err != nil {
+		return err
+	}
+	if err := g.InsertTxs(txs); err != nil {
+		return err
+	}
+	return g.UpsertBlocks(blocks)
 }
 
 // Returns a BlockSubscriber connected to a stream of unprocessed blocks.

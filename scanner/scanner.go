@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"math"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,14 +27,8 @@ type ETHClient interface {
 // Graph is implemented by objects that can insert transactions and upsert wallets, blocks
 // into a tx graph instance.
 type Graph interface {
-	// Inserts new transactions.
-	InsertTxs(txs []*graph.Tx) error
-
-	// Creates new wallets or updates existing ones.
-	UpsertWallets(wallets []*graph.Wallet) error
-
-	// Creates new blocks or updates an existing ones.
-	UpsertBlocks(blocks []*graph.Block) error
+	// Upsert wallets, txs, blocks.
+	Upsert(items []interface{}) error
 }
 
 // Config encapsulates the configuration options for creating a new Scanner.
@@ -65,14 +60,16 @@ func NewScanner(cfg Config) *Scanner {
 // Creates the stages of a scanner pipeline using the options in cfg
 // and assembles them into a pipeline instance.
 func assembleScannerPipeline(cfg Config) *pipeline.Pipeline {
+	numFetchers := int(math.Max(1, float64(cfg.FetchWorkers/2)))
+	numParsers	:= int(math.Max(1, float64(cfg.FetchWorkers-numFetchers)))
 	return pipeline.New(
 		pipeline.DynamicWorkerPool(
 			newBlockFetcher(cfg.ETHClient),
-			cfg.FetchWorkers/2,
+			numFetchers,
 		),
 		pipeline.FixedWorkerPool(
 			newTxParser(cfg.Graph),
-			cfg.FetchWorkers/2,
+			numParsers,
 		),
 	)
 }
@@ -115,16 +112,10 @@ type countingSink struct {
 // the block.Processed should be set to true.
 // Once the Consume returns, the pipeline worker automatically invokes MarkAsProcessed
 // on the payload, which ensures the payload is returned to the payloadPool.
-func (si *countingSink) Consume(_ context.Context, p pipeline.Payload) error {
+func (si *countingSink) Consume(_ context.Context, _ pipeline.Payload) error {
 	si.count++
 	promScannerCnt.Inc()
-
-	 return si.txGraph.UpsertBlocks([]*graph.Block{
-	 	&graph.Block{
-			Number: p.(*scannerPayload).BlockNumber,
-			Processed: true,
-		},
-	})
+	return nil
 }
 
 func (si *countingSink) getCount() int {

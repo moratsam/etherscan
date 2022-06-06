@@ -24,9 +24,7 @@ type ETHClient interface {
 // GraphAPI defines as set of API methods for accessing the tx graph.
 type GraphAPI interface {
 	Blocks() (graph.BlockIterator, error)
-	UpsertBlocks(blocks []*graph.Block) error
-	InsertTxs(txs []*graph.Tx) error
-	UpsertWallets(wallets []*graph.Wallet) error
+	Upsert(items []interface{}) error
 }
 
 // Config encapsulates the settings for configuring the eth-scanner service.

@@ -106,6 +106,9 @@ type Graph interface {
 	// Creates new wallets or updates existing ones.
 	UpsertWallets(wallets []*Wallet) error
 
+	// Upsert any items (blocks, wallets, txs).
+	Upsert(items []interface{}) error
+
 	// Looks up a wallet by its address.
 	// Note: Currently not being used.
 	FindWallet(address string) (*Wallet, error)

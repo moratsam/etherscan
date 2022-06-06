@@ -28,7 +28,7 @@ func (s *CDBGraphTestSuite) SetUpSuite(c *gc.C) {
 	g, err := NewCDBGraph(dsn, false)
 	c.Assert(err, gc.IsNil)
 	s.SetGraph(g)
-	s.db = g.db
+	s.db = db
 }
 
 func (s *CDBGraphTestSuite) SetUpTest(c *gc.C) {

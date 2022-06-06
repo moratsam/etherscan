@@ -49,21 +49,19 @@ func (tp *txParser) Process(ctx context.Context, p pipeline.Payload) (pipeline.P
 		}
 		txs = append(txs, graphTx)
 	}
-	if len(txs) > 0 {
-		// First upsert the From/To wallets.
-		var wallets []*graph.Wallet
-		for addr := range walletsMap {
-			wallet := &graph.Wallet{Address: addr}
-			wallets = append(wallets, wallet)
-		}
-		if err := tp.txGraph.UpsertWallets(wallets); err != nil {
-			return nil, err
-		}
 
-		// Then insert the transactions.
-		if err := tp.txGraph.InsertTxs(txs); err != nil {
-			return nil, err
-		}
+	// Upsert wallets, txs, block.
+	var wallets []*graph.Wallet
+	for addr := range walletsMap {
+		wallet := &graph.Wallet{Address: addr}
+		wallets = append(wallets, wallet)
+	}
+	block := &graph.Block{
+			Number: p.(*scannerPayload).BlockNumber,
+			Processed: true,
+	}
+	if err := tp.txGraph.Upsert([]interface{}{wallets, txs, block}); err != nil {
+		return nil, err
 	}
 	
 	return p, nil
